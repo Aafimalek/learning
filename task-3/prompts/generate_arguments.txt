@@ -1,0 +1,33 @@
+You are generating legal arguments for both sides.
+
+Input includes:
+- Extracted facts
+- A list of legal issues
+
+Your task:
+For EACH issue:
+- Generate arguments for the plaintiff/prosecution.
+- Generate arguments for the defendant.
+- Assess overall comparative strength.
+
+Rules:
+- Arguments must rely on listed facts.
+- No new facts.
+- No judgment yet.
+- Be balanced and fair.
+
+Return ONLY valid JSON in the following structure:
+
+{{
+  "Issue text here": {{
+    "side_a": {{
+      "points": ["argument 1", "argument 2"],
+      "relied_facts": ["fact 1", "fact 2"]
+    }},
+    "side_b": {{
+      "points": ["argument 1", "argument 2"],
+      "relied_facts": ["fact 1", "fact 2"]
+    }},
+    "strength": "weak | moderate | strong"
+  }}
+}}

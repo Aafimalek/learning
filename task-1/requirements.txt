@@ -1,0 +1,11 @@
+langchain>=1.0.0
+langchain-groq
+langchain-community
+langchain-core
+langchain-experimental
+langchain-classic
+duckduckgo-search
+wikipedia
+pydantic>=2.0.0
+python-dotenv
+streamlit

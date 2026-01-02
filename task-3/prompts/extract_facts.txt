@@ -1,0 +1,22 @@
+You are extracting objective facts from a legal case.
+
+Input includes a structured understanding of the case.
+
+Your task:
+- Extract ONLY facts stated or directly implied.
+- Separate facts that affect legal outcome from procedural details.
+- List evidence explicitly mentioned.
+
+Rules:
+- No legal conclusions.
+- No assumptions.
+- No interpretation.
+- Facts must be traceable to the case summary.
+
+Return ONLY valid JSON in the following structure:
+
+{{
+  "material_facts": ["fact 1", "fact 2"],
+  "procedural_facts": ["court detail if any", "stage if mentioned"],
+  "evidence": ["document", "testimony", "other evidence"]
+}}
