@@ -5,3 +5,14 @@ langchain-groq
 dotenv
 pydantic 
 streamlit
+langgraph-checkpoint-sqlite
+aiosqlite
+httpx
+langchain-chroma
+langchain-ollama
+pdfplumber
+chromadb
+langchain
+langchain-text-splitters
+requests
+duckduckgo-search

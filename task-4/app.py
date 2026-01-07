@@ -1,84 +1,143 @@
 import streamlit as st
 import uuid
-from langchain_core.messages import HumanMessage, AIMessage
-from backend import chatbot, add_thread_id, get_thread_ids
+import asyncio
+from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
+from backend import graph, get_thread_ids, ingest_pdf, delete_thread, set_current_thread
+from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+import aiosqlite
+
+# Monkeypatch aiosqlite.Connection.is_alive for langgraph compatibility
+if not hasattr(aiosqlite.Connection, "is_alive"):
+    def is_alive(self):
+        return self._running and self._thread.is_alive()
+    setattr(aiosqlite.Connection, "is_alive", is_alive)
 
 st.set_page_config(page_title="LangGraph Chatbot", page_icon="🤖")
 
 st.title("LangGraph Chatbot")
 
-# Initialize thread_id if not present
-if "thread_id" not in st.session_state:
-    st.session_state.thread_id = str(uuid.uuid4())
+async def main():
+    # Setup Async Checkpointer
+    async with AsyncSqliteSaver.from_conn_string("checkpoints.db") as checkpointer:
+        chatbot = graph.compile(checkpointer=checkpointer)
 
-# Sidebar for chat history
-with st.sidebar:
-    st.header("Chat Sessions")
-    
-    if st.button("➕ New Chat"):
-        st.session_state.thread_id = str(uuid.uuid4())
-        st.rerun()
-        
-    st.subheader("Recent Chats")
-    existing_ids = get_thread_ids()
-    reversed_ids = existing_ids[::-1] # Show newest first
-    for tid in reversed_ids:
-        # Use a label for the current chat or a button for others
-        if tid == st.session_state.thread_id:
-            st.button(f"📍 {tid}", disabled=True, key=f"curr_{tid}")
-        else:
-            if st.button(f"💬 {tid}", key=f"btn_{tid}"):
-                st.session_state.thread_id = tid
+        # Fetch existing threads
+        existing_ids = await get_thread_ids()
+
+        # Initialize thread_id if not present
+        if "thread_id" not in st.session_state:
+            st.session_state.thread_id = str(uuid.uuid4())
+
+        # Sidebar for chat history
+        with st.sidebar:
+            st.header("Chat Sessions")
+            
+            if st.button("➕ New Chat"):
+                st.session_state.thread_id = str(uuid.uuid4())
                 st.rerun()
+                
+            st.subheader("Recent Chats")
+            reversed_ids = existing_ids[::-1] # Show newest first
+            for tid in reversed_ids:
+                col1, col2 = st.columns([0.8, 0.2])
+                with col1:
+                    if tid == st.session_state.thread_id:
+                        st.button(f"📍 {tid}", disabled=True, key=f"curr_{tid}")
+                    else:
+                        if st.button(f"💬 {tid}", key=f"btn_{tid}"):
+                            st.session_state.thread_id = tid
+                            st.rerun()
+                with col2:
+                    if st.button("🗑️", key=f"del_{tid}"):
+                         await delete_thread(tid)
+                         # If deleting current thread, reset to new
+                         if tid == st.session_state.thread_id:
+                             st.session_state.thread_id = str(uuid.uuid4())
+                         st.rerun()
 
-config = {"configurable": {"thread_id": st.session_state.thread_id}}
+            # File Uploader
+            st.markdown("---")
+            st.subheader("📄 Upload Document")
+            uploaded_file = st.file_uploader("Upload a PDF to chat with", type=["pdf"], key=f"uploader_{st.session_state.thread_id}")
+            
+            if uploaded_file:
+                # Ingest the file if it hasn't been ingested for this thread yet (or re-ingest)
+                if st.button("Process PDF"):
+                    with st.spinner("Processing PDF..."):
+                        try:
+                            # Read bytes
+                            file_bytes = uploaded_file.getvalue()
+                            stats = ingest_pdf(file_bytes, st.session_state.thread_id, uploaded_file.name)
+                            st.success(f"Indexed {stats['chunks']} chunks from {stats['filename']}")
+                        except Exception as e:
+                            st.error(f"Error processing file: {e}")
 
-# Fetch current state from memory
-try:
-    current_state = chatbot.get_state(config)
-    # If the state exists, it will have 'messages'. If it's a new thread, values might be empty.
-    messages = current_state.values.get("messages", [])
-except Exception as e:
-    # If there's an issue fetching state (e.g. invalid config or empty storage), start fresh
-    messages = []
-
-# Display chat history
-for message in messages:
-    if isinstance(message, HumanMessage):
-        with st.chat_message("user"):
-            st.markdown(message.content)
-    elif isinstance(message, AIMessage):
-        with st.chat_message("assistant"):
-            st.markdown(message.content)
-
-# Handle user input
-if prompt := st.chat_input("Type your message here..."):
-    # Ensure thread is registered
-    add_thread_id(st.session_state.thread_id)
-
-    # Display user message immediately
-    with st.chat_message("user"):
-        st.markdown(prompt)
-    
-    with st.chat_message("assistant"):
-        message_placeholder = st.empty()
-        message_placeholder.markdown("Thinking...")
+        config = {"configurable": {"thread_id": st.session_state.thread_id},
+                  "metadata": {"thread_id": st.session_state.thread_id},
+                  "run_name":"chat_turn",
+                  }
         
-        # Stream the response
-        full_response = ""
+        # Set the current thread for RAG tool access
+        set_current_thread(st.session_state.thread_id)
         
-        # Use stream_mode="messages" to get token-by-token updates
-        for msg, metadata in chatbot.stream(
-            {"messages": [HumanMessage(content=prompt)]}, 
-            config=config, 
-            stream_mode="messages"
-        ):
-            if msg.content:
-                full_response += msg.content
-                message_placeholder.markdown(full_response + "▌")
-        
-        # Final update to remove the cursor
-        message_placeholder.markdown(full_response)
-        
-        if not full_response:
-             message_placeholder.markdown("No response generated.")
+        # Fetch current state from memory
+        try:
+            current_state = await chatbot.aget_state(config)
+            messages = current_state.values.get("messages", [])
+        except Exception as e:
+            messages = []
+
+        # Display chat history
+        for message in messages:
+            if isinstance(message, HumanMessage):
+                with st.chat_message("user"):
+                    st.markdown(message.content)
+            elif isinstance(message, AIMessage):
+                with st.chat_message("assistant"):
+                    st.markdown(message.content)
+            # ToolMessages are usually not displayed in the main history in this UI, 
+            # or could be displayed if desired. 
+            # For brevity/cleanness, omitting simple rendering here or adding it.
+            # If you want to see tool usage in history, add `elif isinstance(message, ToolMessage): ...`
+
+        # Handle user input
+        if prompt := st.chat_input("Type your message here..."):
+            with st.chat_message("user"):
+                st.markdown(prompt)
+            
+            with st.chat_message("assistant"):
+                message_placeholder = st.empty()
+                full_response = ""
+                
+                # Container for tool statuses - moved above loop to render first
+                status_container = st.status("Thinking...", expanded=True)
+                
+                with status_container:
+                     message_placeholder.markdown("Thinking...")
+                
+                async for msg, metadata in chatbot.astream(
+                    {"messages": [HumanMessage(content=prompt)]}, 
+                    config=config, 
+                    stream_mode="messages"
+                ):
+                    if isinstance(msg, AIMessage):
+                        if msg.tool_calls:
+                            for tool in msg.tool_calls:
+                                status_container.write(f"🛠️ Using tool: **{tool['name']}**")
+                        
+                        if msg.content:
+                            full_response += msg.content
+                            message_placeholder.markdown(full_response + "▌")
+                    
+                    elif isinstance(msg, ToolMessage):
+                        status_container.write(f"✅ Tool result: **{msg.name}**")
+                
+                status_container.update(label="Complete", state="complete", expanded=False)
+                
+                message_placeholder.markdown(full_response)
+                
+                if not full_response:
+                     message_placeholder.markdown("No response generated.")
+
+if __name__ == "__main__":
+    asyncio.run(main())
