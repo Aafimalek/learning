@@ -5,6 +5,7 @@ from langchain_groq import ChatGroq
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.graph.message import add_messages
 import os
+import json
 from dotenv import load_dotenv
 import aiosqlite
 import httpx
@@ -15,6 +16,7 @@ from langchain_chroma import Chroma
 from langchain_ollama import OllamaEmbeddings
 from langgraph.prebuilt import ToolNode, tools_condition
 from langchain_core.tools import tool
+import chromadb
 
 load_dotenv()
 os.getenv("GROQ_API_KEY")
@@ -24,9 +26,11 @@ llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0.5)
 _current_thread_id: str | None = None
 
 def set_current_thread(thread_id: str):
-    """Set the current thread ID for RAG tool access."""
+    """Set the current thread ID for RAG tool access and load its retriever if exists."""
     global _current_thread_id
     _current_thread_id = thread_id
+    # Try to load existing retriever for this thread
+    _load_retriever_for_thread(thread_id)
 
 # -------------------
 # 1. Embeddings & Logic
@@ -35,20 +39,99 @@ def set_current_thread(thread_id: str):
 embeddings = OllamaEmbeddings(model="nomic-embed-text", base_url="http://127.0.0.1:11434")
 
 # -------------------
-# 2. PDF retriever store (per thread)
+# 2. Persistent Chroma Setup
 # -------------------
+CHROMA_PERSIST_DIR = "chroma_db"
+METADATA_FILE = "chroma_metadata.json"
+
+# Create persistent Chroma client
+_chroma_client = chromadb.PersistentClient(path=CHROMA_PERSIST_DIR)
+
+# In-memory cache for retrievers (loaded from persistent storage)
 _THREAD_RETRIEVERS: dict[str, object] = {}
 _THREAD_METADATA: dict[str, dict] = {}
 
+def _load_metadata() -> dict:
+    """Load metadata from JSON file."""
+    if os.path.exists(METADATA_FILE):
+        try:
+            with open(METADATA_FILE, 'r') as f:
+                return json.load(f)
+        except:
+            return {}
+    return {}
+
+def _save_metadata(metadata: dict):
+    """Save metadata to JSON file."""
+    with open(METADATA_FILE, 'w') as f:
+        json.dump(metadata, f)
+
+def _get_collection_name(thread_id: str) -> str:
+    """Generate a valid collection name for a thread."""
+    # Chroma collection names must be 3-63 chars, alphanumeric with underscores/hyphens
+    return f"thread_{thread_id.replace('-', '_')}"
+
+def _load_retriever_for_thread(thread_id: str):
+    """Load an existing retriever from persistent Chroma for a thread."""
+    global _THREAD_RETRIEVERS, _THREAD_METADATA
+    
+    if thread_id in _THREAD_RETRIEVERS:
+        return  # Already loaded
+    
+    collection_name = _get_collection_name(thread_id)
+    
+    try:
+        # Check if collection exists
+        existing_collections = [c.name for c in _chroma_client.list_collections()]
+        if collection_name in existing_collections:
+            # Load existing collection
+            vector_store = Chroma(
+                client=_chroma_client,
+                collection_name=collection_name,
+                embedding_function=embeddings
+            )
+            
+            # Verify it has documents
+            collection = _chroma_client.get_collection(collection_name)
+            if collection.count() > 0:
+                retriever = vector_store.as_retriever(
+                    search_type="similarity", search_kwargs={"k": 4}
+                )
+                _THREAD_RETRIEVERS[thread_id] = retriever
+                
+                # Load metadata
+                all_metadata = _load_metadata()
+                if thread_id in all_metadata:
+                    _THREAD_METADATA[thread_id] = all_metadata[thread_id]
+    except Exception as e:
+        print(f"Error loading retriever for thread {thread_id}: {e}")
+
+def get_thread_pdf_info(thread_id: str) -> dict | None:
+    """Get PDF metadata for a thread if it has an uploaded document."""
+    # First check in-memory cache
+    if thread_id in _THREAD_METADATA:
+        return _THREAD_METADATA[thread_id]
+    
+    # Otherwise check persistent metadata
+    all_metadata = _load_metadata()
+    if thread_id in all_metadata:
+        _THREAD_METADATA[thread_id] = all_metadata[thread_id]
+        return all_metadata[thread_id]
+    
+    return None
+
 def _get_retriever(thread_id: str | None):
     """Fetch the retriever for a thread if available."""
-    if thread_id and thread_id in _THREAD_RETRIEVERS:
-        return _THREAD_RETRIEVERS[thread_id]
+    if thread_id:
+        # Try to load if not in cache
+        if thread_id not in _THREAD_RETRIEVERS:
+            _load_retriever_for_thread(thread_id)
+        return _THREAD_RETRIEVERS.get(thread_id)
     return None
 
 def ingest_pdf(file_bytes: bytes, thread_id: str, filename: str | None = None) -> dict:
     """
-    Build a Chroma retriever for the uploaded PDF and store it for the thread.
+    Build a persistent Chroma retriever for the uploaded PDF and store it for the thread.
     """
     if not file_bytes:
         raise ValueError("No bytes received for ingestion.")
@@ -66,15 +149,22 @@ def ingest_pdf(file_bytes: bytes, thread_id: str, filename: str | None = None) -
         )
         chunks = splitter.split_documents(docs)
 
-        # Create Chroma vector store in-memory for this thread (or persistent if configured)
-        # Using a unique collection name per thread ensures isolation if using persistent client
-        # For simplicity here, we create a new ephemeral client/collection or allow Chroma to handle it.
-        # Note: Chroma() with no persistence_directory is in-memory. 
-        # We explicitly use Chroma for vector storage, NOT the SQLite checkpoints DB.
+        collection_name = _get_collection_name(thread_id)
+        
+        # Delete existing collection if it exists (for re-upload)
+        try:
+            existing_collections = [c.name for c in _chroma_client.list_collections()]
+            if collection_name in existing_collections:
+                _chroma_client.delete_collection(collection_name)
+        except:
+            pass
+        
+        # Create persistent Chroma vector store
         vector_store = Chroma.from_documents(
             documents=chunks,
             embedding=embeddings,
-            collection_name=f"thread_{thread_id}_{os.urandom(4).hex()}"
+            client=_chroma_client,
+            collection_name=collection_name
         )
         
         retriever = vector_store.as_retriever(
@@ -82,17 +172,21 @@ def ingest_pdf(file_bytes: bytes, thread_id: str, filename: str | None = None) -
         )
 
         _THREAD_RETRIEVERS[str(thread_id)] = retriever
-        _THREAD_METADATA[str(thread_id)] = {
+        
+        # Save metadata persistently
+        metadata = {
             "filename": filename or os.path.basename(temp_path),
             "documents": len(docs),
             "chunks": len(chunks),
         }
+        _THREAD_METADATA[str(thread_id)] = metadata
+        
+        # Persist metadata to file
+        all_metadata = _load_metadata()
+        all_metadata[str(thread_id)] = metadata
+        _save_metadata(all_metadata)
 
-        return {
-            "filename": filename or os.path.basename(temp_path),
-            "documents": len(docs),
-            "chunks": len(chunks),
-        }
+        return metadata
     finally:
         try:
             os.remove(temp_path)
@@ -255,11 +349,33 @@ async def get_thread_ids(db_path="checkpoints.db"):
 
 async def delete_thread(thread_id: str, db_path="checkpoints.db"):
     try:
-         async with aiosqlite.connect(db_path) as db:
+        async with aiosqlite.connect(db_path) as db:
             await db.execute("DELETE FROM checkpoints WHERE thread_id = ?", (thread_id,))
             await db.execute("DELETE FROM writes WHERE thread_id = ?", (thread_id,))
             await db.commit()
-            return True
+        
+        # Also delete Chroma collection for this thread
+        collection_name = _get_collection_name(thread_id)
+        try:
+            existing_collections = [c.name for c in _chroma_client.list_collections()]
+            if collection_name in existing_collections:
+                _chroma_client.delete_collection(collection_name)
+        except Exception as e:
+            print(f"Error deleting Chroma collection: {e}")
+        
+        # Remove from in-memory cache
+        if thread_id in _THREAD_RETRIEVERS:
+            del _THREAD_RETRIEVERS[thread_id]
+        if thread_id in _THREAD_METADATA:
+            del _THREAD_METADATA[thread_id]
+        
+        # Update metadata file
+        all_metadata = _load_metadata()
+        if thread_id in all_metadata:
+            del all_metadata[thread_id]
+            _save_metadata(all_metadata)
+        
+        return True
     except Exception as e:
         print(f"Error deleting thread {thread_id}: {e}")
         return False

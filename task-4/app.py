@@ -2,7 +2,7 @@ import streamlit as st
 import uuid
 import asyncio
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
-from backend import graph, get_thread_ids, ingest_pdf, delete_thread, set_current_thread
+from backend import graph, get_thread_ids, ingest_pdf, delete_thread, set_current_thread, get_thread_pdf_info
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 import aiosqlite
 
@@ -58,6 +58,12 @@ async def main():
             # File Uploader
             st.markdown("---")
             st.subheader("📄 Upload Document")
+            
+            # Show currently loaded PDF for this thread
+            pdf_info = get_thread_pdf_info(st.session_state.thread_id)
+            if pdf_info:
+                st.info(f"📎 **Loaded:** {pdf_info['filename']}\n\n({pdf_info['chunks']} chunks)")
+            
             uploaded_file = st.file_uploader("Upload a PDF to chat with", type=["pdf"], key=f"uploader_{st.session_state.thread_id}")
             
             if uploaded_file:
@@ -69,6 +75,7 @@ async def main():
                             file_bytes = uploaded_file.getvalue()
                             stats = ingest_pdf(file_bytes, st.session_state.thread_id, uploaded_file.name)
                             st.success(f"Indexed {stats['chunks']} chunks from {stats['filename']}")
+                            st.rerun()  # Refresh to show the loaded PDF info
                         except Exception as e:
                             st.error(f"Error processing file: {e}")
 
@@ -106,14 +113,12 @@ async def main():
                 st.markdown(prompt)
             
             with st.chat_message("assistant"):
-                message_placeholder = st.empty()
-                full_response = ""
-                
-                # Container for tool statuses - moved above loop to render first
+                # Container for tool statuses - created FIRST so it appears above response
                 status_container = st.status("Thinking...", expanded=True)
                 
-                with status_container:
-                     message_placeholder.markdown("Thinking...")
+                # Message placeholder created AFTER status so response appears below
+                message_placeholder = st.empty()
+                full_response = ""
                 
                 async for msg, metadata in chatbot.astream(
                     {"messages": [HumanMessage(content=prompt)]}, 
