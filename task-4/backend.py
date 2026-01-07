@@ -6,6 +6,8 @@ from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.graph.message import add_messages
 import os
 import json
+import hashlib
+import shutil
 from dotenv import load_dotenv
 import aiosqlite
 import httpx
@@ -39,10 +41,16 @@ def set_current_thread(thread_id: str):
 embeddings = OllamaEmbeddings(model="nomic-embed-text", base_url="http://127.0.0.1:11434")
 
 # -------------------
-# 2. Persistent Chroma Setup
+# 2. Persistent Storage Setup
 # -------------------
 CHROMA_PERSIST_DIR = "chroma_db"
+DOCUMENTS_DIR = "uploaded_documents"
 METADATA_FILE = "chroma_metadata.json"
+DOC_HASH_FILE = "document_hashes.json"  # Maps file hash -> collection name
+
+# Create directories if they don't exist
+os.makedirs(CHROMA_PERSIST_DIR, exist_ok=True)
+os.makedirs(DOCUMENTS_DIR, exist_ok=True)
 
 # Create persistent Chroma client
 _chroma_client = chromadb.PersistentClient(path=CHROMA_PERSIST_DIR)
@@ -64,7 +72,30 @@ def _load_metadata() -> dict:
 def _save_metadata(metadata: dict):
     """Save metadata to JSON file."""
     with open(METADATA_FILE, 'w') as f:
-        json.dump(metadata, f)
+        json.dump(metadata, f, indent=2)
+
+def _load_doc_hashes() -> dict:
+    """Load document hash mappings from JSON file."""
+    if os.path.exists(DOC_HASH_FILE):
+        try:
+            with open(DOC_HASH_FILE, 'r') as f:
+                return json.load(f)
+        except:
+            return {}
+    return {}
+
+def _save_doc_hashes(hashes: dict):
+    """Save document hash mappings to JSON file."""
+    with open(DOC_HASH_FILE, 'w') as f:
+        json.dump(hashes, f, indent=2)
+
+def _compute_file_hash(file_bytes: bytes) -> str:
+    """Compute SHA256 hash of file bytes."""
+    return hashlib.sha256(file_bytes).hexdigest()
+
+def _get_collection_name_for_hash(file_hash: str) -> str:
+    """Generate a collection name based on file hash."""
+    return f"doc_{file_hash[:16]}"
 
 def _get_collection_name(thread_id: str) -> str:
     """Generate a valid collection name for a thread."""
@@ -78,7 +109,17 @@ def _load_retriever_for_thread(thread_id: str):
     if thread_id in _THREAD_RETRIEVERS:
         return  # Already loaded
     
-    collection_name = _get_collection_name(thread_id)
+    # First, check metadata to get the correct collection name
+    all_metadata = _load_metadata()
+    
+    if thread_id not in all_metadata:
+        return  # No document for this thread
+    
+    thread_meta = all_metadata[thread_id]
+    _THREAD_METADATA[thread_id] = thread_meta
+    
+    # Get collection name from metadata (new style) or fall back to thread-based name (old style)
+    collection_name = thread_meta.get("collection_name", _get_collection_name(thread_id))
     
     try:
         # Check if collection exists
@@ -98,11 +139,6 @@ def _load_retriever_for_thread(thread_id: str):
                     search_type="similarity", search_kwargs={"k": 4}
                 )
                 _THREAD_RETRIEVERS[thread_id] = retriever
-                
-                # Load metadata
-                all_metadata = _load_metadata()
-                if thread_id in all_metadata:
-                    _THREAD_METADATA[thread_id] = all_metadata[thread_id]
     except Exception as e:
         print(f"Error loading retriever for thread {thread_id}: {e}")
 
@@ -129,69 +165,137 @@ def _get_retriever(thread_id: str | None):
         return _THREAD_RETRIEVERS.get(thread_id)
     return None
 
-def ingest_pdf(file_bytes: bytes, thread_id: str, filename: str | None = None) -> dict:
+def _save_document(file_bytes: bytes, filename: str, file_hash: str) -> str:
+    """Save document to the documents folder and return the path."""
+    # Create a subfolder for each document hash to avoid name collisions
+    doc_folder = os.path.join(DOCUMENTS_DIR, file_hash[:16])
+    os.makedirs(doc_folder, exist_ok=True)
+    
+    # Save the file
+    file_path = os.path.join(doc_folder, filename)
+    with open(file_path, 'wb') as f:
+        f.write(file_bytes)
+    
+    return file_path
+
+def _get_or_create_collection_for_document(file_bytes: bytes, filename: str) -> tuple[str, dict, bool]:
     """
-    Build a persistent Chroma retriever for the uploaded PDF and store it for the thread.
+    Check if document already exists (by hash). If so, return existing collection name.
+    Otherwise, create new collection and return it.
+    Returns: (collection_name, metadata, was_cached)
     """
-    if not file_bytes:
-        raise ValueError("No bytes received for ingestion.")
-
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_file:
-        temp_file.write(file_bytes)
-        temp_path = temp_file.name
-
-    try:
-        loader = PDFPlumberLoader(temp_path)
-        docs = loader.load()
-
-        splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000, chunk_overlap=200, separators=["\n\n", "\n", " ", ""]
-        )
-        chunks = splitter.split_documents(docs)
-
-        collection_name = _get_collection_name(thread_id)
-        
-        # Delete existing collection if it exists (for re-upload)
+    file_hash = _compute_file_hash(file_bytes)
+    collection_name = _get_collection_name_for_hash(file_hash)
+    
+    # Check if this document was already processed
+    doc_hashes = _load_doc_hashes()
+    
+    if file_hash in doc_hashes:
+        # Document already exists, check if collection is valid
+        existing_info = doc_hashes[file_hash]
         try:
             existing_collections = [c.name for c in _chroma_client.list_collections()]
             if collection_name in existing_collections:
-                _chroma_client.delete_collection(collection_name)
+                collection = _chroma_client.get_collection(collection_name)
+                if collection.count() > 0:
+                    # Valid cached document
+                    return collection_name, existing_info, True
         except:
             pass
-        
-        # Create persistent Chroma vector store
-        vector_store = Chroma.from_documents(
-            documents=chunks,
-            embedding=embeddings,
-            client=_chroma_client,
-            collection_name=collection_name
-        )
-        
-        retriever = vector_store.as_retriever(
-            search_type="similarity", search_kwargs={"k": 4}
-        )
+    
+    # Need to process the document
+    # Save the document to disk
+    saved_path = _save_document(file_bytes, filename, file_hash)
+    
+    # Load and process the PDF
+    loader = PDFPlumberLoader(saved_path)
+    docs = loader.load()
+    
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=1000, chunk_overlap=200, separators=["\n\n", "\n", " ", ""]
+    )
+    chunks = splitter.split_documents(docs)
+    
+    # Delete existing collection if it exists (for re-processing)
+    try:
+        existing_collections = [c.name for c in _chroma_client.list_collections()]
+        if collection_name in existing_collections:
+            _chroma_client.delete_collection(collection_name)
+    except:
+        pass
+    
+    # Create persistent Chroma vector store
+    Chroma.from_documents(
+        documents=chunks,
+        embedding=embeddings,
+        client=_chroma_client,
+        collection_name=collection_name
+    )
+    
+    # Save document info
+    metadata = {
+        "filename": filename,
+        "documents": len(docs),
+        "chunks": len(chunks),
+        "file_hash": file_hash,
+        "saved_path": saved_path,
+        "collection_name": collection_name
+    }
+    
+    # Update hash mapping
+    doc_hashes[file_hash] = metadata
+    _save_doc_hashes(doc_hashes)
+    
+    return collection_name, metadata, False
 
-        _THREAD_RETRIEVERS[str(thread_id)] = retriever
-        
-        # Save metadata persistently
-        metadata = {
-            "filename": filename or os.path.basename(temp_path),
-            "documents": len(docs),
-            "chunks": len(chunks),
-        }
-        _THREAD_METADATA[str(thread_id)] = metadata
-        
-        # Persist metadata to file
-        all_metadata = _load_metadata()
-        all_metadata[str(thread_id)] = metadata
-        _save_metadata(all_metadata)
-
-        return metadata
-    finally:
-        try:
-            os.remove(temp_path)
-        except OSError:
-            pass
+def ingest_pdf(file_bytes: bytes, thread_id: str, filename: str | None = None) -> dict:
+    """
+    Build a persistent Chroma retriever for the uploaded PDF and store it for the thread.
+    Uses caching - if the same document was uploaded before, reuses the existing embeddings.
+    """
+    if not file_bytes:
+        raise ValueError("No bytes received for ingestion.")
+    
+    actual_filename = filename or "uploaded.pdf"
+    
+    # Get or create collection for this document (with caching)
+    collection_name, doc_info, was_cached = _get_or_create_collection_for_document(
+        file_bytes, actual_filename
+    )
+    
+    # Load the vector store and create retriever
+    vector_store = Chroma(
+        client=_chroma_client,
+        collection_name=collection_name,
+        embedding_function=embeddings
+    )
+    
+    retriever = vector_store.as_retriever(
+        search_type="similarity", search_kwargs={"k": 4}
+    )
+    
+    _THREAD_RETRIEVERS[str(thread_id)] = retriever
+    
+    # Save metadata for this thread (linking to the document)
+    thread_metadata = {
+        "filename": doc_info["filename"],
+        "documents": doc_info["documents"],
+        "chunks": doc_info["chunks"],
+        "file_hash": doc_info["file_hash"],
+        "collection_name": collection_name,
+        "cached": was_cached
+    }
+    _THREAD_METADATA[str(thread_id)] = thread_metadata
+    
+    # Persist thread metadata
+    all_metadata = _load_metadata()
+    all_metadata[str(thread_id)] = thread_metadata
+    _save_metadata(all_metadata)
+    
+    return {
+        **thread_metadata,
+        "message": "Using cached embeddings" if was_cached else "Processed new document"
+    }
 
 # Tools
 @tool

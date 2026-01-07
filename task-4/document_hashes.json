@@ -1,0 +1,26 @@
+{
+  "ead90eb856310948ebea3f6fac1a0e23b8e70cf6685e4533067ff395cf061d15": {
+    "filename": "The Ultimate Python Handbook.pdf",
+    "documents": 61,
+    "chunks": 102,
+    "file_hash": "ead90eb856310948ebea3f6fac1a0e23b8e70cf6685e4533067ff395cf061d15",
+    "saved_path": "uploaded_documents\\ead90eb856310948\\The Ultimate Python Handbook.pdf",
+    "collection_name": "doc_ead90eb856310948"
+  },
+  "dfb0413cc6190f2d8ae46319882e17352551ddf1bbc5252de359d3df76115200": {
+    "filename": "CNQuestions.pdf",
+    "documents": 34,
+    "chunks": 42,
+    "file_hash": "dfb0413cc6190f2d8ae46319882e17352551ddf1bbc5252de359d3df76115200",
+    "saved_path": "uploaded_documents\\dfb0413cc6190f2d\\CNQuestions.pdf",
+    "collection_name": "doc_dfb0413cc6190f2d"
+  },
+  "977bbe4fd0b16b62b7767615de04c0b35552077b98aa433e76251630aab5f162": {
+    "filename": "\ud83d\udcd8 AI_ML Software Foundations Curriculum (Oct\u2013Dec) (1).pdf",
+    "documents": 9,
+    "chunks": 9,
+    "file_hash": "977bbe4fd0b16b62b7767615de04c0b35552077b98aa433e76251630aab5f162",
+    "saved_path": "uploaded_documents\\977bbe4fd0b16b62\\\ud83d\udcd8 AI_ML Software Foundations Curriculum (Oct\u2013Dec) (1).pdf",
+    "collection_name": "doc_977bbe4fd0b16b62"
+  }
+}

@@ -1,1 +1,26 @@
-{"7032a7df-b61c-494c-8f71-c88c6128082b": {"filename": "The Ultimate Python Handbook.pdf", "documents": 61, "chunks": 102}}
+{
+  "d7f5f888-bc4d-4c68-84a0-e511e22644ac": {
+    "filename": "The Ultimate Python Handbook.pdf",
+    "documents": 61,
+    "chunks": 102,
+    "file_hash": "ead90eb856310948ebea3f6fac1a0e23b8e70cf6685e4533067ff395cf061d15",
+    "collection_name": "doc_ead90eb856310948",
+    "cached": false
+  },
+  "35459dac-5d41-4689-8613-84beebe2ac6d": {
+    "filename": "CNQuestions.pdf",
+    "documents": 34,
+    "chunks": 42,
+    "file_hash": "dfb0413cc6190f2d8ae46319882e17352551ddf1bbc5252de359d3df76115200",
+    "collection_name": "doc_dfb0413cc6190f2d",
+    "cached": false
+  },
+  "8e400cb6-9a64-4f40-a173-7a52668be005": {
+    "filename": "\ud83d\udcd8 AI_ML Software Foundations Curriculum (Oct\u2013Dec) (1).pdf",
+    "documents": 9,
+    "chunks": 9,
+    "file_hash": "977bbe4fd0b16b62b7767615de04c0b35552077b98aa433e76251630aab5f162",
+    "collection_name": "doc_977bbe4fd0b16b62",
+    "cached": false
+  }
+}

@@ -62,7 +62,8 @@ async def main():
             # Show currently loaded PDF for this thread
             pdf_info = get_thread_pdf_info(st.session_state.thread_id)
             if pdf_info:
-                st.info(f"📎 **Loaded:** {pdf_info['filename']}\n\n({pdf_info['chunks']} chunks)")
+                cached_badge = " ⚡ cached" if pdf_info.get('cached') else ""
+                st.info(f"📎 **Loaded:** {pdf_info['filename']}{cached_badge}\n\n({pdf_info['chunks']} chunks)")
             
             uploaded_file = st.file_uploader("Upload a PDF to chat with", type=["pdf"], key=f"uploader_{st.session_state.thread_id}")
             
@@ -74,7 +75,10 @@ async def main():
                             # Read bytes
                             file_bytes = uploaded_file.getvalue()
                             stats = ingest_pdf(file_bytes, st.session_state.thread_id, uploaded_file.name)
-                            st.success(f"Indexed {stats['chunks']} chunks from {stats['filename']}")
+                            if stats.get('cached'):
+                                st.success(f"⚡ Using cached embeddings for {stats['filename']} ({stats['chunks']} chunks)")
+                            else:
+                                st.success(f"✅ Indexed {stats['chunks']} chunks from {stats['filename']}")
                             st.rerun()  # Refresh to show the loaded PDF info
                         except Exception as e:
                             st.error(f"Error processing file: {e}")
