@@ -104,12 +104,11 @@ async def main():
                 with st.chat_message("user"):
                     st.markdown(message.content)
             elif isinstance(message, AIMessage):
-                with st.chat_message("assistant"):
-                    st.markdown(message.content)
-            # ToolMessages are usually not displayed in the main history in this UI, 
-            # or could be displayed if desired. 
-            # For brevity/cleanness, omitting simple rendering here or adding it.
-            # If you want to see tool usage in history, add `elif isinstance(message, ToolMessage): ...`
+                # Only display if there's actual content (skip empty tool-call-only messages)
+                if message.content:
+                    with st.chat_message("assistant"):
+                        st.markdown(message.content)
+            # ToolMessages are usually not displayed in the main history in this UI
 
         # Handle user input
         if prompt := st.chat_input("Type your message here..."):
@@ -117,10 +116,13 @@ async def main():
                 st.markdown(prompt)
             
             with st.chat_message("assistant"):
-                # Container for tool statuses - created FIRST so it appears above response
-                status_container = st.status("Thinking...", expanded=True)
+                # Track tool usage for display
+                tools_used = []
                 
-                # Message placeholder created AFTER status so response appears below
+                # Tool status placeholder - shows real-time tool usage
+                tool_status_placeholder = st.empty()
+                
+                # Message placeholder for response
                 message_placeholder = st.empty()
                 full_response = ""
                 
@@ -132,18 +134,25 @@ async def main():
                     if isinstance(msg, AIMessage):
                         if msg.tool_calls:
                             for tool in msg.tool_calls:
-                                status_container.write(f"🛠️ Using tool: **{tool['name']}**")
+                                tools_used.append(tool['name'])
+                                # Update tool status in real-time
+                                tool_status_placeholder.caption(f"🔄 Using: {', '.join(tools_used)}...")
                         
                         if msg.content:
                             full_response += msg.content
                             message_placeholder.markdown(full_response + "▌")
                     
                     elif isinstance(msg, ToolMessage):
-                        status_container.write(f"✅ Tool result: **{msg.name}**")
-                
-                status_container.update(label="Complete", state="complete", expanded=False)
+                        # Update to show tool completed
+                        tool_status_placeholder.caption(f"✅ {msg.name} complete | 🔄 Processing...")
                 
                 message_placeholder.markdown(full_response)
+                
+                # Show final tool usage info
+                if tools_used:
+                    tool_status_placeholder.caption(f"🛠️ Tools used: {', '.join(tools_used)}")
+                else:
+                    tool_status_placeholder.empty()
                 
                 if not full_response:
                      message_placeholder.markdown("No response generated.")
