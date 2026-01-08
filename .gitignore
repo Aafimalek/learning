@@ -1,12 +1,32 @@
-# Python
+# ============================================
+# 🤖 GenAI & Agentic AI Learning Repository
+# .gitignore - Customized for this project
+# ============================================
+
+# ============================================
+# 🔐 SENSITIVE DATA - API Keys & Secrets
+# ============================================
+.env
+.env.*
+.env.local
+.env.production
+*.env
+.envrc
+secrets.json
+secrets.yaml
+secrets.yml
+*_secret*
+api_keys.txt
+credentials.json
+
+# ============================================
+# 🐍 Python Cache & Bytecode
+# ============================================
 __pycache__/
 *.py[cod]
 *$py.class
-
-# C extensions
-*.so
-
-# Distribution / packaging
+*.pyo
+*.pyd
 .Python
 build/
 develop-eggs/
@@ -26,15 +46,51 @@ share/python-wheels/
 *.egg
 MANIFEST
 
-# PyInstaller
-*.manifest
-*.spec
+# ============================================
+# 📓 Jupyter Notebook
+# ============================================
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/
+**/.ipynb_checkpoints/
+profile_default/
+ipython_config.py
 
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
+# ============================================
+# 🗄️ Database Files (LangGraph Checkpoints)
+# ============================================
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+checkpoints.db*
 
-# Unit test / coverage reports
+# ============================================
+# 📊 Vector Databases - ChromaDB
+# ============================================
+# Ignore ChromaDB data files but keep folder structure
+task-4/chroma_db/*.sqlite3
+task-4/chroma_db/**/data_level0.bin
+task-4/chroma_db/**/header.bin
+task-4/chroma_db/**/index_metadata.pickle
+task-4/chroma_db/**/length.bin
+task-4/chroma_db/**/link_lists.bin
+
+# ============================================
+# 📄 Uploaded Documents & Generated Metadata
+# ============================================
+# Ignore uploaded PDFs (user-specific data)
+task-4/uploaded_documents/*/
+task-4/uploaded_documents/**/*.pdf
+
+# Generated metadata files
+task-4/document_hashes.json
+task-4/chroma_metadata.json
+
+# ============================================
+# 🧪 Testing & Coverage
+# ============================================
 htmlcov/
 .tox/
 .nox/
@@ -49,108 +105,175 @@ coverage.xml
 .pytest_cache/
 cover/
 
-# Translations
-*.mo
-*.pot
-
-# Django stuff:
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
-
-# Flask stuff:
-instance/
-.webassets-cache
-
-# Scrapy stuff:
-.scrapy
-
-# Sphinx documentation
-docs/_build/
-
-# PyBuilder
-target/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# IPython
-profile_default/
-ipython_config.py
-
-# pyenv
-.python-version
-
-# pipenv
-#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
-#   However, in case of collaboration, if having platform-specific dependencies or dependencies
-#   having no cross-platform support, pipenv may install dependencies that don't work, or not
-#   install all needed dependencies.
-#Pipfile.lock
-
-# poetry
-#   Similar to Pipfile.lock, it is generally recommended to include poetry.lock in version control.
-#   This is especially recommended for binary dependencies to ensure reproducible builds.
-#poetry.lock
-
-# pdm
-#   Similar to Pipfile.lock, it is generally recommended to include pdm.lock in version control.
-#pdm.lock
-#   pdm stores project-wide configurations in .pdm.toml, but it is recommended to not include it
-#   in version control.
-#   https://pdm.fming.dev/latest/usage/project/#working-with-version-control
-.pdm.toml
-.pdm-python
-.pdm-build/
-
-# PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
-__pypackages__/
-
-# Celery stuff
-celerybeat-schedule
-celerybeat.pid
-
-# SageMath parsed files
-*.sage.py
-
-# Environments
-.env
-.venv
-env/
+# ============================================
+# 📦 Virtual Environments
+# ============================================
+.venv/
 venv/
+env/
 ENV/
 env.bak/
 venv.bak/
+.conda/
+conda-env/
+virtualenv/
 
-# Spyder project settings
-.spyderproject
-.spyproject
+# ============================================
+# 🖥️ IDE & Editor Settings
+# ============================================
+# VSCode
+.vscode/
+*.code-workspace
 
-# Rope project settings
-.ropeproject
+# PyCharm / JetBrains
+.idea/
+*.iml
+*.ipr
+*.iws
 
-# mkdocs documentation
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*.swn
+*~
+
+# ============================================
+# 💻 OS Generated Files
+# ============================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# ============================================
+# 📝 Logs & Temporary Files
+# ============================================
+*.log
+*.tmp
+*.temp
+*.bak
+*.backup
+logs/
+log/
+temp/
+tmp/
+*.pid
+
+# ============================================
+# 🔧 Build & Packaging
+# ============================================
+*.manifest
+*.spec
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ============================================
+# 📚 Documentation
+# ============================================
+docs/_build/
 /site
+*.mo
+*.pot
 
-# mypy
+# ============================================
+# 🔍 Type Checkers & Linters
+# ============================================
 .mypy_cache/
 .dmypy.json
 dmypy.json
-
-# Pyre type checker
 .pyre/
-
-# pytype static type analyzer
 .pytype/
-
-# Cython debug symbols
 cython_debug/
+.ruff_cache/
 
-# IDEs
-.vscode/
-.idea/
+# ============================================
+# 📋 Package Managers
+# ============================================
+.pdm.toml
+.pdm-python
+.pdm-build/
+__pypackages__/
+# Pipfile.lock  # Uncomment if you want to ignore
+# poetry.lock   # Uncomment if you want to ignore
 
-# OS
-.DS_Store
-Thumbs.db
+# ============================================
+# 🤖 ML/AI Specific (for future use)
+# ============================================
+# Model weights (usually large files)
+*.h5
+*.hdf5
+*.pkl
+*.pickle
+*.joblib
+*.pt
+*.pth
+*.onnx
+*.pb
+*.safetensors
+models/
+weights/
+saved_models/
+
+# Datasets
+datasets/
+data/raw/
+data/processed/
+
+# Experiment tracking
+mlruns/
+mlartifacts/
+wandb/
+tensorboard_logs/
+runs/
+
+# LangSmith traces
+.langsmith/
+langsmith_traces/
+
+# ============================================
+# ✅ WHITELIST - Always Include These
+# ============================================
+# Keep folder structure with .gitkeep files
+!**/.gitkeep
+
+# Keep all source code
+!*.py
+!*.ipynb
+
+# Keep requirements
+!requirements.txt
+
+# Keep documentation
+!README.md
+!*.md
+
+# Keep prompt templates
+!prompts/*.txt
+!qna/*.txt
+
+# ============================================
+# 📁 Folder Structure Preservation
+# ============================================
+# These ensure empty directories are tracked
+# Run these commands to create .gitkeep files:
+#   touch task-4/chroma_db/.gitkeep
+#   touch task-4/uploaded_documents/.gitkeep

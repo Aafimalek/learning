@@ -22,7 +22,7 @@ import chromadb
 
 load_dotenv()
 os.getenv("GROQ_API_KEY")
-llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0.5)
+llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0.1)
 
 # Module-level variable to track current thread for RAG
 _current_thread_id: str | None = None
