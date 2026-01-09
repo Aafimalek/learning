@@ -1,0 +1,12 @@
+[project]
+name = "task-5"
+version = "0.1.0"
+description = "Basic MCP server expense tracker"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastmcp",
+]
+
+[project.scripts]
+task-5 = "main:mcp.run"
