@@ -1,0 +1,14 @@
+# Research Agent Dependencies
+# Use `uv sync` to install from pyproject.toml (recommended)
+# Or `pip install -r requirements.txt` for traditional install
+
+langchain
+langchain-groq
+langchain-community
+langgraph
+tavily-python
+httpx
+beautifulsoup4
+lxml
+python-dotenv
+pydantic
