@@ -23,6 +23,7 @@
 - [Task-2: Tool-Calling Agents](#-task-2-tool-calling-agents)
 - [Task-3: Multi-Stage Pipeline (Legal Case Analysis)](#-task-3-multi-stage-pipeline-legal-case-analysis)
 - [Task-4: LangGraph & Advanced Agentic AI](#-task-4-langgraph--advanced-agentic-ai)
+- [Task-5: MCP Server (Expense Tracker)](#-task-5-mcp-server-expense-tracker)
 - [Key Concepts Reference](#-key-concepts-reference)
 - [How to Add New Tasks](#-how-to-add-new-tasks)
 - [Setup & Installation](#-setup--installation)
@@ -199,6 +200,11 @@ training/
 │   ├── chroma_db/               # Persistent vector storage
 │   ├── uploaded_documents/      # PDF storage for RAG
 │   └── requirements.txt
+├── task-5/                      # MCP Server Expense Tracker
+│   ├── main.py                  # FastMCP server with tools
+│   ├── categories.json          # Expense categories & subcategories
+│   ├── pyproject.toml           # Project configuration
+│   └── README.md
 └── .env                         # API keys (not tracked)
 ```
 
@@ -212,7 +218,7 @@ training/
 | Task 2 | Tool-Calling Agents | ⭐⭐ Intermediate | ✅ Complete |
 | Task 3 | Multi-Stage Pipelines | ⭐⭐⭐ Advanced | ✅ Complete |
 | Task 4 | LangGraph & Long-Term Memory | ⭐⭐⭐⭐ Expert | ✅ Complete |
-| Task 5 | *Future* | - | 🔜 Planned |
+| Task 5 | MCP Server (Expense Tracker) | ⭐⭐ Intermediate | ✅ Complete |
 
 ---
 
@@ -1245,7 +1251,114 @@ flowchart TB
 
 ---
 
-## 📚 Key Concepts Reference
+## � Task-5: MCP Server (Expense Tracker)
+
+### 🎯 Learning Objectives
+- Understand Model Context Protocol (MCP) fundamentals
+- Build an MCP server using FastMCP framework
+- Create tools that interact with SQLite database
+- Expose resources via MCP protocol
+- Learn tool decoration and resource patterns
+
+### 🏗️ Architecture
+
+```mermaid
+flowchart TB
+    subgraph MCP["MCP Server (FastMCP)"]
+        A[ExpenseTracker Server] --> B[SQLite Database]
+    end
+    
+    subgraph Tools["MCP Tools"]
+        T1[add_expense] --> B
+        T2[list_expenses] --> B
+        T3[summarize] --> B
+    end
+    
+    subgraph Resources["MCP Resources"]
+        R1[expense://categories] --> C[categories.json]
+    end
+    
+    subgraph Client["MCP Client"]
+        D[AI Assistant / LLM] --> MCP
+    end
+```
+
+### 🧩 How It Works
+
+#### Model Context Protocol (MCP)
+
+MCP is an open protocol that enables AI assistants to interact with external tools and data sources. FastMCP provides a simple decorator-based approach:
+
+```python
+from fastmcp import FastMCP
+
+mcp = FastMCP("ExpenseTracker")
+
+@mcp.tool()
+def add_expense(date, amount, category, subcategory="", note=""):
+    '''Add a new expense entry to the database.'''
+    # Tool implementation
+    pass
+
+@mcp.resource("expense://categories", mime_type="application/json")
+def categories():
+    # Resource implementation
+    pass
+```
+
+### 📁 Task-5 Components Overview
+
+| File | Purpose | Key Concepts |
+|------|---------|-------------|
+| `main.py` | MCP server definition | FastMCP, tools, resources |
+| `categories.json` | Expense categories data | JSON resource, hierarchical data |
+| `pyproject.toml` | Project configuration | Dependencies, scripts |
+| `expenses.db` | SQLite database (auto-created) | Persistent storage |
+
+### 🔧 MCP Tools Defined
+
+| Tool | Description | Parameters |
+|------|-------------|------------|
+| `add_expense` | Add a new expense entry | `date`, `amount`, `category`, `subcategory`, `note` |
+| `list_expenses` | List expenses in date range | `start_date`, `end_date` |
+| `summarize` | Summarize by category | `start_date`, `end_date`, `category` (optional) |
+
+### 📊 Expense Categories
+
+The server provides a comprehensive categorization system:
+
+| Category | Example Subcategories |
+|----------|----------------------|
+| **food** | groceries, dining_out, coffee_tea, delivery_fees |
+| **transport** | fuel, public_transport, cab_ride_hailing, parking |
+| **housing** | rent, maintenance_hoa, property_tax, repairs_service |
+| **utilities** | electricity, water, gas, internet_broadband, mobile_phone |
+| **health** | medicines, doctor_consultation, fitness_gym |
+| **education** | books, courses, online_subscriptions |
+
+### 🚀 Running Task-5
+
+```bash
+# Install dependencies
+cd task-5
+pip install fastmcp
+
+# Run the MCP server
+python main.py
+
+# Or using the script defined in pyproject.toml
+task-5
+```
+
+### 🔧 Technologies Used (Task-5)
+- **FastMCP**: Framework for building MCP servers
+- **SQLite**: Lightweight embedded database for expense storage
+- **MCP Protocol**: Standard protocol for AI tool integration
+- **Python 3.10+**: Required runtime
+
+---
+
+## �📚 Key Concepts Reference
 
 ### LangChain vs LangGraph Comparison
 
