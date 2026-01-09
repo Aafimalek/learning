@@ -24,6 +24,7 @@
 - [Task-3: Multi-Stage Pipeline (Legal Case Analysis)](#-task-3-multi-stage-pipeline-legal-case-analysis)
 - [Task-4: LangGraph & Advanced Agentic AI](#-task-4-langgraph--advanced-agentic-ai)
 - [Task-5: MCP Server (Expense Tracker)](#-task-5-mcp-server-expense-tracker)
+- [Task-6: Research Agent (Multi-Stage Web Research)](#-task-6-research-agent-multi-stage-web-research)
 - [Key Concepts Reference](#-key-concepts-reference)
 - [How to Add New Tasks](#-how-to-add-new-tasks)
 - [Setup & Installation](#-setup--installation)
@@ -205,6 +206,14 @@ training/
 │   ├── categories.json          # Expense categories & subcategories
 │   ├── pyproject.toml           # Project configuration
 │   └── README.md
+├── task-6/                      # Research Agent (Web Research)
+│   ├── main.py                  # CLI entry point
+│   ├── graph.py                 # LangGraph workflow & routing
+│   ├── agents.py                # Agent nodes (planner, reader, etc.)
+│   ├── tools.py                 # Tool wrappers (Tavily, web scraper)
+│   ├── schemas.py               # Pydantic models & state definitions
+│   ├── pyproject.toml           # uv dependencies
+│   └── README.md
 └── .env                         # API keys (not tracked)
 ```
 
@@ -219,6 +228,7 @@ training/
 | Task 3 | Multi-Stage Pipelines | ⭐⭐⭐ Advanced | ✅ Complete |
 | Task 4 | LangGraph & Long-Term Memory | ⭐⭐⭐⭐ Expert | ✅ Complete |
 | Task 5 | MCP Server (Expense Tracker) | ⭐⭐ Intermediate | ✅ Complete |
+| Task 6 | Research Agent (Web Research) | ⭐⭐⭐⭐ Expert | ✅ Complete |
 
 ---
 
@@ -1358,7 +1368,307 @@ task-5
 
 ---
 
-## �📚 Key Concepts Reference
+## 🔬 Task-6: Research Agent (Multi-Stage Web Research)
+
+### 🎯 Learning Objectives
+- Build a **robust multi-stage research pipeline** using LangGraph
+- Implement **graceful error handling** where tools never throw exceptions
+- Design **three types of state**: short-term, research memory, failure memory
+- Use **verification before synthesis** to reduce hallucinations
+- Create tools that return standardized `ToolResponse` objects
+- Handle partial failures with fallback strategies
+
+### 🏗️ Architecture
+
+```mermaid
+flowchart TB
+    subgraph Input["User Query"]
+        A["❓ Research Question"]
+    end
+    
+    subgraph Planner["🎯 PLANNER NODE"]
+        B["Convert vague intent → research plan"]
+        B1["Generate 3-5 search queries"]
+        B2["Define quality constraints"]
+    end
+    
+    subgraph Search["🔍 SEARCH NODE"]
+        C["Execute Tavily searches"]
+        C1["Capture metadata per result"]
+        C2["Assign confidence hints"]
+    end
+    
+    subgraph Reader["📖 READER NODE"]
+        D["Fetch full articles"]
+        D1["httpx + BeautifulSoup"]
+        D2["Fallback: LangChain WebBaseLoader"]
+        D3["Final: Snippet-only extraction"]
+        D4["Extract: claims, evidence, stats, bias"]
+    end
+    
+    subgraph Verifier["✅ VERIFIER NODE"]
+        E["Cross-check claims across sources"]
+        E1["Confirmed points"]
+        E2["Disputed points"]
+        E3["Single-source claims"]
+    end
+    
+    subgraph Synthesizer["📝 SYNTHESIZER NODE"]
+        F["Synthesize ACROSS sources"]
+        F1["Rate evidence strength"]
+        F2["Identify open questions"]
+    end
+    
+    subgraph Answer["💬 ANSWER NODE"]
+        G["Generate final response"]
+        G1["Markdown formatting"]
+        G2["Inline citations"]
+        G3["Confidence section"]
+    end
+    
+    A --> B
+    B --> B1 --> B2 --> C
+    C --> C1 --> C2 --> D
+    D --> D1 --> D2 --> D3 --> D4 --> E
+    E --> E1 --> E2 --> E3 --> F
+    F --> F1 --> F2 --> G
+    G --> G1 --> G2 --> G3
+```
+
+### 🔑 Key Design Principles
+
+#### 1. Tools Never Throw Exceptions
+Every tool returns a standardized response - **no exceptions bubble up**:
+
+```python
+class ToolResponse(BaseModel):
+    success: bool
+    data: Optional[dict | list | str] = None
+    error: Optional[str] = None
+    retry_suggestion: Optional[str] = None
+```
+
+#### 2. Graceful Degradation Flow
+
+```mermaid
+flowchart LR
+    A["Tool Called"] --> B{"Success?"}
+    B -->|Yes| C["Next Step"]
+    B -->|No| D["Retry with modification"]
+    D --> E{"Retry worked?"}
+    E -->|Yes| C
+    E -->|No| F["Fallback strategy"]
+    F --> G{"Fallback worked?"}
+    G -->|Yes| C
+    G -->|No| H["Log failure, continue with partial results"]
+    H --> C
+```
+
+#### 3. Three Types of State
+
+| State Type | Contents | Purpose |
+|------------|----------|--------|
+| **Short-term** | `current_step`, `retry_count`, tool outputs | Current execution context |
+| **Research Memory** | `research_plan`, `search_results`, `extracted_notes`, `verification`, `synthesis` | Accumulated knowledge |
+| **Failure Memory** | `failures` list with operation, target, error, timestamp | Learning from failures |
+
+#### 4. Extract Before Synthesizing
+
+Reader outputs are **structured notes**, not summaries:
+
+```python
+class ExtractedNotes(BaseModel):
+    url: str
+    title: str
+    key_claims: list[str]      # Main assertions
+    evidence: list[str]        # Supporting facts/studies
+    data_stats: list[str]      # Numbers, percentages, dates
+    limitations: list[str]     # Caveats, gaps
+    author_bias: Optional[str] # Detected perspective
+    confidence: Literal["HIGH", "MEDIUM", "LOW"]
+    extraction_method: Literal["FULL", "SNIPPET_ONLY", "FAILED"]
+```
+
+#### 5. Verification Layer (Critical!)
+
+Before synthesis, cross-check claims:
+- **Confirmed points**: Multiple sources agree
+- **Disputed points**: Sources contradict each other  
+- **Single-source claims**: Flagged for caution
+
+This reduces hallucinations more than any prompt engineering.
+
+### 📊 Source Confidence Levels
+
+```mermaid
+flowchart TB
+    subgraph HIGH["🟢 HIGH Confidence"]
+        H1[".gov, .edu domains"]
+        H2["nature.com, science.org"]
+        H3["arxiv.org, pubmed"]
+        H4["ieee.org, acm.org, springer.com"]
+    end
+    
+    subgraph MEDIUM["🟡 MEDIUM Confidence"]
+        M1["Established news"]
+        M2["Reputable tech blogs"]
+        M3["Company documentation"]
+    end
+    
+    subgraph LOW["🔴 LOW Confidence"]
+        L1["reddit.com, quora.com"]
+        L2["medium.com (user blogs)"]
+        L3["Opinion pieces, forums"]
+    end
+```
+
+### 📝 Key Code Patterns
+
+#### LangGraph State Definition
+```python
+class AgentState(TypedDict, total=False):
+    # Input
+    user_question: str
+    
+    # Short-term state
+    current_step: str
+    retry_count: int
+    max_retries: int
+    
+    # Research memory
+    research_plan: Optional[dict]
+    search_results: list[dict]
+    extracted_notes: list[dict]
+    verification: Optional[dict]
+    synthesis: Optional[dict]
+    
+    # Failure memory
+    failures: list[dict]
+    
+    # Output
+    final_answer: Optional[str]
+    citations: list[str]
+    
+    # Control flow
+    should_continue: bool
+    error_state: Optional[str]
+```
+
+#### Planner Node Output
+```python
+class ResearchPlan(BaseModel):
+    objective: str                    # What we're trying to learn
+    sub_questions: list[str]          # Broken-down aspects
+    search_queries: list[str]         # 3-5 specific queries
+    quality_constraints: list[str]    # Source quality requirements
+    max_searches: int = 5
+    max_articles_per_search: int = 3
+```
+
+#### Error-Resilient Tool Pattern
+```python
+def fetch_article(self, url: str, snippet_fallback: Optional[str] = None) -> ToolResponse:
+    # Try primary fetch
+    try:
+        result = self._fetch_with_httpx(url)
+        if result.success:
+            return result
+    except Exception:
+        pass  # Continue to fallback
+    
+    # Try LangChain fallback
+    try:
+        result = self._fetch_with_langchain(url)
+        if result.success:
+            return result
+    except Exception:
+        pass
+    
+    # Final fallback: use snippet
+    if snippet_fallback:
+        return ToolResponse(
+            success=True,
+            data={"content": snippet_fallback, "extraction_method": "SNIPPET_ONLY"}
+        )
+    
+    return ToolResponse(success=False, error="All fetch methods failed")
+```
+
+### 🔄 LangGraph Workflow
+
+```mermaid
+stateDiagram-v2
+    [*] --> Planner
+    Planner --> Search: success
+    Planner --> ErrorHandler: error
+    
+    Search --> Reader: has results
+    Search --> ErrorHandler: all searches failed
+    
+    Reader --> Verifier: has notes
+    Reader --> ErrorHandler: no notes extracted
+    
+    Verifier --> Synthesizer: always continues
+    
+    Synthesizer --> Answer: success
+    Synthesizer --> ErrorHandler: error
+    
+    Answer --> [*]
+    ErrorHandler --> [*]: partial results
+```
+
+### 📁 Task-6 Components Overview
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| `main.py` | CLI entry point | `run_single_query()`, `run_interactive()` |
+| `graph.py` | LangGraph workflow | `create_research_graph()`, `run_research()` |
+| `agents.py` | Agent node functions | `planner_node`, `search_node`, `reader_node`, etc. |
+| `tools.py` | Tool wrappers | `SearchTool`, `ReaderTool` |
+| `schemas.py` | Pydantic models | `AgentState`, `ToolResponse`, `ExtractedNotes`, etc. |
+
+### 🚀 Running Task-6
+
+```bash
+# Install dependencies with uv
+cd task-6
+uv pip install -r requirements.txt
+
+# Configure API keys in .env
+GROQ_API_KEY=your_groq_key
+TAVILY_API_KEY=your_tavily_key
+
+# Run single query
+python main.py "What are the latest developments in quantum computing?"
+
+# Interactive mode
+python main.py --interactive
+
+# Quiet mode (minimal output)
+python main.py -q "Compare React vs Vue.js"
+```
+
+### 🔧 Technologies Used (Task-6)
+- **LangGraph**: State machine workflow orchestration
+- **ChatGroq**: Llama 3.3 70B Versatile for LLM calls
+- **Tavily API**: LLM-optimized web search
+- **httpx + BeautifulSoup4**: Primary web scraping
+- **LangChain WebBaseLoader**: Fallback web scraping
+- **Pydantic v2**: Schema validation
+- **uv**: Fast Python package manager
+
+### 💡 Key Learnings from Task-6
+
+1. **Error handling > Prompt engineering**: Robust fallbacks reduce failures more than better prompts
+2. **Extract before synthesize**: Raw notes prevent premature summarization
+3. **Verification reduces hallucinations**: Cross-checking sources is critical
+4. **Three state types**: Short-term, research memory, and failure memory serve different purposes
+5. **Never hard-stop**: Always provide partial results when possible
+6. **Standardized tool responses**: `ToolResponse` pattern makes error handling consistent
+
+---
+
+## 📚 Key Concepts Reference
 
 ### LangChain vs LangGraph Comparison
 
