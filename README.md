@@ -25,6 +25,7 @@
 - [Task-4: LangGraph & Advanced Agentic AI](#-task-4-langgraph--advanced-agentic-ai)
 - [Task-5: MCP Server (Expense Tracker)](#-task-5-mcp-server-expense-tracker)
 - [Task-6: Research Agent (Multi-Stage Web Research)](#-task-6-research-agent-multi-stage-web-research)
+- [Task-7: Multi-Agent Routing System](#-task-7-multi-agent-routing-system)
 - [Key Concepts Reference](#-key-concepts-reference)
 - [How to Add New Tasks](#-how-to-add-new-tasks)
 - [Setup & Installation](#-setup--installation)
@@ -66,6 +67,12 @@ graph LR
         D --> G[RAG Systems]
     end
     
+    subgraph "Phase 4: Multi-Agent Systems"
+        D --> H[Task 5: MCP Server]
+        D --> I[Task 6: Research Agent]
+        I --> J[Task 7: Multi-Agent Router]
+    end
+    
     style A fill:#e1f5fe
     style B fill:#b3e5fc
     style C fill:#81d4fa
@@ -73,6 +80,9 @@ graph LR
     style E fill:#29b6f6
     style F fill:#29b6f6
     style G fill:#29b6f6
+    style H fill:#26a69a
+    style I fill:#26a69a
+    style J fill:#00897b
 ```
 
 ---
@@ -214,6 +224,16 @@ training/
 │   ├── schemas.py               # Pydantic models & state definitions
 │   ├── pyproject.toml           # uv dependencies
 │   └── README.md
+├── task-7/                      # Multi-Agent Routing System
+│   ├── main.py                  # CLI entry point (interactive/single query)
+│   ├── graph.py                 # LangGraph fan-out workflow
+│   ├── classifier.py            # Pure intent classifier (no tools)
+│   ├── router.py                # Deterministic routing policy
+│   ├── agents.py                # Specialized agents (blog, code, QNA, etc.)
+│   ├── schemas.py               # Intent definitions & state schemas
+│   ├── logger.py                # Logging & analytics
+│   ├── logs/                    # Auto-generated log files
+│   └── requirements.txt
 └── .env                         # API keys (not tracked)
 ```
 
@@ -229,6 +249,7 @@ training/
 | Task 4 | LangGraph & Long-Term Memory | ⭐⭐⭐⭐ Expert | ✅ Complete |
 | Task 5 | MCP Server (Expense Tracker) | ⭐⭐ Intermediate | ✅ Complete |
 | Task 6 | Research Agent (Web Research) | ⭐⭐⭐⭐ Expert | ✅ Complete |
+| Task 7 | Multi-Agent Routing System | ⭐⭐⭐⭐ Expert | ✅ Complete |
 
 ---
 
@@ -1668,7 +1689,318 @@ python main.py -q "Compare React vs Vue.js"
 
 ---
 
-## 📚 Key Concepts Reference
+## � Task-7: Multi-Agent Routing System
+
+### 🎯 Learning Objectives
+- Design **non-overlapping intents** as a contract before coding agents
+- Build a **pure intent classifier** (not an agent - no tools, low temp, structured output)
+- Implement **deterministic routing policy** (LLM should not decide everything)
+- Create **specialized dumb agents** that assume intent is already correct
+- Use **LangGraph fan-out topology** instead of chain-of-thought
+- Add **first-class error handling** with clarification and recovery paths
+- Implement **logging and introspection** for pattern detection
+
+### 🏗️ Architecture
+
+```mermaid
+flowchart TB
+    subgraph Input["User Query"]
+        A["❓ User Input"]
+    end
+    
+    subgraph Classifier["🎯 INTENT CLASSIFIER NODE"]
+        B["Pure classifier - NOT an agent"]
+        B1["No tools"]
+        B2["Low temperature (0.0)"]
+        B3["Structured output only"]
+        B4["Fast model: llama-3.1-8b-instant"]
+    end
+    
+    subgraph Router["🔀 ROUTING POLICY NODE"]
+        C["Deterministic Python function"]
+        C1["if confidence < 0.6 → CLARIFY"]
+        C2["elif intent == X → X_AGENT"]
+    end
+    
+    subgraph Agents["🤖 SPECIALIZED AGENTS"]
+        D1["📝 BLOG_AGENT<br/>Long-form creative writing"]
+        D2["💻 CODE_AGENT<br/>Code generation"]
+        D3["❓ QNA_AGENT<br/>Short factual answers"]
+        D4["🔬 RESEARCH_AGENT<br/>In-depth analysis"]
+        D5["🤔 CLARIFY_AGENT<br/>Ambiguous queries"]
+    end
+    
+    subgraph Error["⚠️ ERROR HANDLING"]
+        E["Recovery Node"]
+        E1["Retry with constrained prompt"]
+        E2["Downgrade output quality"]
+        E3["Graceful failure message"]
+    end
+    
+    subgraph Output["📤 Response"]
+        F["Final Output"]
+    end
+    
+    A --> B
+    B --> B1 --> B2 --> B3 --> B4 --> C
+    C --> C1 --> C2
+    C2 -->|BLOG_WRITE| D1
+    C2 -->|CODE| D2
+    C2 -->|QNA| D3
+    C2 -->|RESEARCH| D4
+    C1 -->|Low Confidence| D5
+    D1 & D2 & D3 & D4 & D5 --> F
+    D1 & D2 & D3 & D4 --> E
+    E --> E1 --> E2 --> E3 --> D5
+```
+
+### 🔑 Key Design Principles
+
+#### 1. Intent Table as Contract (Step 1)
+
+**Do not start by coding agents. Start with this table:**
+
+| Intent | Description | Output Shape | Example |
+|--------|-------------|--------------|--------|
+| `BLOG_WRITE` | Long-form creative writing | Markdown article | "Write a blog on transformers" |
+| `CODE` | Deterministic code generation | Code block | "Write a Flask API" |
+| `QNA` | Short factual answer | Text (1-3 sentences) | "What is cosine similarity?" |
+| `RESEARCH` | In-depth analysis with structure | Structured text | "Compare BERT vs GPT" |
+| `CLARIFY` | Ambiguous query needs clarity | Question + options | (internal routing) |
+
+**Rule**: If two intents can answer the same query, split them or merge them. Ambiguity here breaks routing.
+
+#### 2. Pure Intent Classifier (Not an Agent!)
+
+```python
+class ClassificationResult(BaseModel):
+    intent: IntentType        # One of [BLOG_WRITE, CODE, QNA, RESEARCH, CLARIFY]
+    confidence: float         # 0.0 - 1.0
+    reasoning: str            # For debugging
+```
+
+Classifier characteristics:
+- ❌ No tools
+- ✅ Low temperature (0.0 - deterministic)
+- ✅ Structured output only
+- ✅ Fast model (Groq llama-3.1-8b-instant)
+- ❌ No prose, only JSON
+
+#### 3. Deterministic Routing Policy
+
+The LLM should NOT decide everything. Add explicit guardrails:
+
+```python
+def routing_policy(state: GraphState) -> str:
+    if confidence < 0.6:
+        return "clarify_agent"     # Safety first
+    elif intent == IntentType.BLOG_WRITE:
+        return "blog_agent"
+    elif intent == IntentType.CODE:
+        return "code_agent"
+    # ... etc
+```
+
+Why? LLMs are probabilistic. LangGraph lets you encode guardrails explicitly. **This is where reliability comes from.**
+
+#### 4. Specialized Agents are Dumb on Purpose
+
+Each downstream agent:
+- ✅ Assumes intent is already correct
+- ✅ Has **zero responsibility** for routing
+- ✅ Is optimized for **one job only**
+- ❌ No routing logic
+- ❌ No meta-decisions
+
+This separation prevents **prompt leakage** and **tool misuse**.
+
+#### 5. First-Class Error Handling
+
+```mermaid
+flowchart LR
+    A["Low Confidence"] --> B["🤔 Clarification Agent"]
+    B --> C["'Do you want a blog,<br/>explanation, or code?'"]
+    
+    D["Agent Failure"] --> E["🔄 Recovery Node"]
+    E --> F["Retry with constrained prompt"]
+    F --> G["Or downgrade output quality"]
+    
+    H["Max Retries Exceeded"] --> I["Graceful Error Message"]
+```
+
+This is what separates a **demo** from a **system**.
+
+### 📊 Graph Topology (Fan-Out, Not Chain)
+
+```mermaid
+stateDiagram-v2
+    [*] --> Classifier
+    Classifier --> Router
+    
+    Router --> BlogAgent: BLOG_WRITE
+    Router --> CodeAgent: CODE
+    Router --> QNAAgent: QNA
+    Router --> ResearchAgent: RESEARCH
+    Router --> ClarifyAgent: Low Confidence
+    
+    BlogAgent --> ErrorRecovery: on error
+    CodeAgent --> ErrorRecovery: on error
+    QNAAgent --> ErrorRecovery: on error
+    ResearchAgent --> ErrorRecovery: on error
+    
+    BlogAgent --> [*]: success
+    CodeAgent --> [*]: success
+    QNAAgent --> [*]: success
+    ResearchAgent --> [*]: success
+    ClarifyAgent --> [*]
+    
+    ErrorRecovery --> ClarifyAgent: fallback
+    ErrorRecovery --> [*]: max retries
+```
+
+### 📝 Key Code Patterns
+
+#### State Schema
+```python
+class GraphState(TypedDict):
+    # Input
+    user_query: str
+    
+    # Classification
+    classification: Optional[ClassificationResult]
+    
+    # Routing
+    routed_to: Optional[str]
+    
+    # Agent output
+    agent_response: Optional[AgentResponse]
+    
+    # Error handling
+    error_state: Optional[str]
+    retry_count: int
+    
+    # Logging (accumulates with each step)
+    logs: Annotated[list[dict], operator.add]
+```
+
+#### Classifier Prompt Pattern
+```python
+CLASSIFIER_SYSTEM_PROMPT = """You are an intent classifier.
+Given a user query, return:
+- intent: one of [BLOG_WRITE, CODE, QNA, RESEARCH]
+- confidence: 0–1
+- reasoning: short explanation
+
+Output strict JSON only. No prose."""
+```
+
+#### Agent Output Schema
+```python
+class AgentResponse(BaseModel):
+    success: bool
+    agent_type: IntentType
+    output: Optional[BlogOutput | CodeOutput | QNAOutput | ResearchOutput] = None
+    raw_output: Optional[str] = None
+    error: Optional[str] = None
+    execution_time_ms: Optional[float] = None
+```
+
+### 🔧 Logging & Introspection
+
+Log every hop:
+- User query
+- Classified intent
+- Confidence score
+- Chosen route
+- Agent output length
+- Errors
+
+```python
+class LogEntry(BaseModel):
+    timestamp: str
+    step: str                          # classifier, router, blog_agent, etc.
+    query: Optional[str]
+    classified_intent: Optional[IntentType]
+    confidence: Optional[float]
+    chosen_route: Optional[str]
+    output_length: Optional[int]
+    error: Optional[str]
+```
+
+Within a week, patterns emerge:
+- Misclassified queries → Update classifier prompt
+- Overlapping intents → Refine intent table
+- Missing agent types → Add new agents
+
+### ⚠️ Common Mistakes Avoided
+
+| ❌ Mistake | ✅ Solution |
+|-----------|------------|
+| Letting main agent decide routing internally | Separate classifier + deterministic router |
+| Using one giant "do everything" agent | Specialized single-purpose agents |
+| No confidence threshold | Confidence-based routing to clarification |
+| Adding tools to the classifier | Pure classifier with no tools |
+| Silent misroutes | Full logging of every hop |
+| No error handling | First-class recovery paths |
+
+### 📁 Task-7 Components Overview
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| `main.py` | CLI entry point | Interactive mode, single query mode |
+| `graph.py` | LangGraph fan-out workflow | `create_routing_graph()`, `run_query()` |
+| `classifier.py` | Pure intent classifier | `classifier_node()`, `ClassificationResult` |
+| `router.py` | Deterministic routing policy | `router_node()`, `routing_policy()` |
+| `agents.py` | Specialized agents | `blog_agent_node`, `code_agent_node`, etc. |
+| `schemas.py` | State & output schemas | `GraphState`, `IntentType`, `AgentResponse` |
+| `logger.py` | Logging & analytics | `append_log()`, `print_analytics()` |
+
+### 🚀 Running Task-7
+
+```bash
+# Install dependencies
+cd task-7
+pip install -r requirements.txt
+
+# Configure API keys in .env
+GROQ_API_KEY=your_groq_key
+
+# Interactive mode
+python main.py
+
+# Single query mode
+python main.py "Write a Flask API for user authentication"
+
+# Show analytics
+python main.py --analytics 7
+```
+
+**Interactive Commands:**
+- `quit` - Exit
+- `logs` - Show recent logs
+- `analytics` - Show 7-day analytics
+- `debug` - Toggle debug mode (shows full state)
+
+### 🔧 Technologies Used (Task-7)
+- **LangGraph**: State machine with conditional edges
+- **ChatGroq**: llama-3.1-8b-instant for fast classification
+- **Pydantic**: Structured outputs & validation
+- **Rich**: Pretty terminal output & tables
+- **python-dotenv**: Environment configuration
+
+### 💡 Key Learnings from Task-7
+
+1. **Intent design > Agent design**: Get the intent table right first
+2. **Classifier ≠ Agent**: No tools, no decisions, just classification
+3. **Deterministic routing**: Python rules add reliability LLMs can't
+4. **Dumb agents win**: Single-purpose agents are easier to debug
+5. **Confidence thresholds**: Silent misroutes are worse than clarifications
+6. **Log everything**: Patterns emerge that improve the system
+7. **Fan-out > Chain**: Parallel paths with conditional edges scale better
+
+---
+
+## �📚 Key Concepts Reference
 
 ### LangChain vs LangGraph Comparison
 

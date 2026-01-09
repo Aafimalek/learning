@@ -1,0 +1,8 @@
+# Multi-Agent Routing System Dependencies
+langchain
+langchain-groq
+langchain-community
+langgraph
+python-dotenv
+pydantic
+rich  # For pretty logging output
