@@ -2,3 +2,10 @@ fastapi
 pydantic
 uvicorn
 sqlalchemy
+langchain
+langchain-community 
+langchain-core 
+langchain-groq
+pypdf 
+langchain-ollama 
+pymongo 
