@@ -27,6 +27,7 @@
 - [Task-6: Research Agent (Multi-Stage Web Research)](#-task-6-research-agent-multi-stage-web-research)
 - [Task-7: Multi-Agent Routing System](#-task-7-multi-agent-routing-system)
 - [Task-8: MongoDB RAG & Vector Search](#-task-8-mongodb-rag--vector-search)
+- [Task-9: MongoDB Fundamentals & CRUD Operations](#-task-9-mongodb-fundamentals--crud-operations)
 - [Key Concepts Reference](#-key-concepts-reference)
 - [How to Add New Tasks](#-how-to-add-new-tasks)
 - [Setup & Installation](#-setup--installation)
@@ -251,6 +252,13 @@ training/
 │   ├── mongo_rag.ipynb          # MongoDB Atlas Vector Search RAG notebook
 │   ├── users.db                 # SQLite database (from main.py)
 │   └── requirements.txt
+├── task-9/                      # MongoDB Fundamentals & CRUD
+│   ├── mongodb_setup.mongodb.js # Database setup & insertMany examples
+│   ├── reading.mongodb.js       # Find queries, projections, sorting
+│   ├── update.mongodb.js        # updateOne, updateMany, $set, $push
+│   ├── delete.mongodb.js        # deleteOne, deleteMany operations
+│   ├── aggregation.mongodb.js   # Aggregation pipeline ($match, $group)
+│   └── indexex.mongodb.js       # Index creation & explain plans
 └── .env                         # API keys (not tracked)
 ```
 
@@ -268,6 +276,7 @@ training/
 | Task 6 | Research Agent (Web Research) | ⭐⭐⭐⭐ Expert | ✅ Complete |
 | Task 7 | Multi-Agent Routing System | ⭐⭐⭐⭐ Expert | ✅ Complete |
 | Task 8 | MongoDB RAG & Vector Search | ⭐⭐⭐ Advanced | ✅ Complete |
+| Task 9 | MongoDB Fundamentals & CRUD | ⭐⭐ Intermediate | ✅ Complete |
 
 ---
 
@@ -2706,6 +2715,590 @@ ollama serve
 8. **SQLAlchemy vs SQLModel**: SQLModel reduces boilerplate by combining ORM + Pydantic
 9. **SQLite for dev**: Perfect for development/testing, swap to PostgreSQL for production
 10. **Session management**: Always close database sessions to prevent connection leaks
+
+---
+
+## 🍃 Task-9: MongoDB Fundamentals & CRUD Operations
+
+### 🎯 Learning Objectives
+- Understand **MongoDB architecture** and document-oriented data model
+- Master **CRUD operations** (Create, Read, Update, Delete)
+- Learn **Query operators** ($gt, $lt, $or, $and, etc.)
+- Implement **Aggregation pipelines** ($match, $group, $project)
+- Understand **Indexing strategies** for query optimization
+- Use **explain()** to analyze query performance
+
+### 📁 Task-9 Components Overview
+
+| File | Purpose | Key Concepts |
+|------|---------|--------------|
+| `mongodb_setup.mongodb.js` | Database initialization | insertMany, collections, data types |
+| `reading.mongodb.js` | Query operations | find, projections, sort, skip, limit |
+| `update.mongodb.js` | Modification operations | updateOne, updateMany, $set, $inc, $push |
+| `delete.mongodb.js` | Removal operations | deleteOne, deleteMany |
+| `aggregation.mongodb.js` | Data transformation | $match, $group, $project, $sum |
+| `indexex.mongodb.js` | Performance optimization | createIndex, getIndexes, explain |
+
+---
+
+### 🧠 MongoDB Theory & Core Concepts
+
+#### What is MongoDB?
+
+**MongoDB** is a **document-oriented NoSQL database** that stores data in flexible, JSON-like documents called **BSON** (Binary JSON). Unlike relational databases that use tables with fixed schemas, MongoDB uses **collections** of documents with dynamic schemas.
+
+```mermaid
+flowchart TB
+    subgraph RDBMS["Relational Database (SQL)"]
+        T1["Table"] --> R1["Row 1"]
+        T1 --> R2["Row 2"]
+        T1 --> R3["Row 3"]
+    end
+    
+    subgraph MongoDB["MongoDB (NoSQL)"]
+        C1["Collection"] --> D1["Document 1"]
+        C1 --> D2["Document 2"]
+        C1 --> D3["Document 3"]
+    end
+    
+    style RDBMS fill:#ffcdd2
+    style MongoDB fill:#c8e6c9
+```
+
+#### MongoDB vs Relational Database Terminology
+
+| SQL Term | MongoDB Term | Description |
+|----------|--------------|-------------|
+| **Database** | **Database** | Container for collections |
+| **Table** | **Collection** | Group of documents |
+| **Row** | **Document** | Single record (JSON/BSON) |
+| **Column** | **Field** | Key-value pair in document |
+| **Primary Key** | **_id** | Unique identifier (auto-generated ObjectId) |
+| **Index** | **Index** | Data structure for fast queries |
+| **JOIN** | **$lookup** | Aggregation operator for combining collections |
+| **Foreign Key** | **Reference** | ObjectId reference to another document |
+
+#### BSON Data Types
+
+MongoDB uses **BSON** (Binary JSON) which supports more data types than regular JSON:
+
+| Type | Description | Example |
+|------|-------------|--------|
+| **String** | UTF-8 text | `"Hello World"` |
+| **Int32/Int64** | 32/64-bit integers | `42`, `NumberLong("9999999999")` |
+| **Double** | 64-bit floating point | `3.14` |
+| **Boolean** | true/false | `true`, `false` |
+| **Date** | UTC datetime | `new Date()`, `ISODate()` |
+| **ObjectId** | 12-byte unique ID | `ObjectId("507f1f77bcf86cd799439011")` |
+| **Array** | Ordered list | `["a", "b", "c"]` |
+| **Embedded Document** | Nested object | `{name: {first: "John", last: "Doe"}}` |
+| **Null** | Null/missing value | `null` |
+| **Binary Data** | Binary blob | Used for files, images |
+| **Regex** | Regular expression | `/pattern/i` |
+
+---
+
+### 📥 Creating Data (INSERT Operations)
+
+MongoDB provides two main methods for inserting documents:
+
+```mermaid
+flowchart LR
+    subgraph Insert["Insert Operations"]
+        A["insertOne()"] --> B["Single Document"]
+        C["insertMany()"] --> D["Multiple Documents"]
+    end
+    
+    style Insert fill:#e8f5e9
+```
+
+#### insertMany Example (`mongodb_setup.mongodb.js`)
+
+```javascript
+use('ecommerce');  // Switch to database (creates if not exists)
+
+db.products.insertMany([
+  {
+    name: "Wireless Mouse",
+    price: 799,
+    category: "Electronics",
+    stock: 120,
+    ratings: 4.5,
+    tags: ["computer", "accessory", "wireless"],  // Array field
+    createdAt: new Date()                           // Date type
+  },
+  {
+    name: "Mechanical Keyboard",
+    price: 2499,
+    category: "Electronics",
+    stock: 80,
+    ratings: 4.8,
+    tags: ["keyboard", "mechanical"],
+    createdAt: new Date()
+  }
+]);
+```
+
+**Key Points:**
+- `use('database')` - Switches to a database (creates it if it doesn't exist)
+- `db.collection.insertMany([])` - Inserts an array of documents
+- Documents don't need the same fields (schema flexibility)
+- `_id` field is auto-generated if not provided (ObjectId)
+- `new Date()` creates a BSON Date object with current timestamp
+
+---
+
+### 📖 Reading Data (FIND Operations)
+
+MongoDB's `find()` method is the primary way to query documents:
+
+```mermaid
+flowchart LR
+    Q["Query"] --> F["find(filter, projection)"]
+    F --> S["sort()"]
+    S --> SK["skip()"]
+    SK --> L["limit()"]
+    L --> R["Results"]
+    
+    style Q fill:#fff3e0
+    style R fill:#e8f5e9
+```
+
+#### Basic Query Syntax
+
+```javascript
+db.collection.find(filter, projection)
+```
+
+- **filter**: Conditions to match documents (like SQL WHERE)
+- **projection**: Fields to include/exclude (like SQL SELECT)
+
+#### Query Examples (`reading.mongodb.js`)
+
+```javascript
+// 1. Find all documents
+db.products.find()
+
+// 2. Find by exact match
+db.products.find({ name: "Gaming Laptop" })
+
+// 3. Find by category
+db.products.find({ category: "Electronics" })
+
+// 4. Comparison operators
+db.products.find({ price: { $gt: 1000 } })  // price > 1000
+
+// 5. Logical OR operator
+db.products.find({ 
+  $or: [
+    { category: "Electronics" }, 
+    { stock: { $lt: 50 } }
+  ] 
+})
+
+// 6. Projection (select specific fields)
+db.products.find({}, { name: 1, price: 1, _id: 0 })
+// Returns only name and price, excludes _id
+
+// 7. Sort, skip, and limit (pagination)
+db.products.find()
+  .sort({ price: -1 })  // Descending order
+  .skip(1)              // Skip first result
+  .limit(1)             // Return only 1 document
+```
+
+#### Query Operators Reference
+
+| Operator | Description | Example |
+|----------|-------------|--------|
+| **$eq** | Equal to | `{ price: { $eq: 100 } }` |
+| **$ne** | Not equal | `{ status: { $ne: "sold" } }` |
+| **$gt** | Greater than | `{ price: { $gt: 500 } }` |
+| **$gte** | Greater than or equal | `{ stock: { $gte: 10 } }` |
+| **$lt** | Less than | `{ price: { $lt: 1000 } }` |
+| **$lte** | Less than or equal | `{ ratings: { $lte: 3 } }` |
+| **$in** | Match any value in array | `{ category: { $in: ["A", "B"] } }` |
+| **$nin** | Not in array | `{ status: { $nin: ["deleted"] } }` |
+| **$and** | Logical AND | `{ $and: [{a: 1}, {b: 2}] }` |
+| **$or** | Logical OR | `{ $or: [{a: 1}, {b: 2}] }` |
+| **$not** | Logical NOT | `{ price: { $not: { $gt: 100 } } }` |
+| **$exists** | Field exists | `{ email: { $exists: true } }` |
+| **$regex** | Pattern match | `{ name: { $regex: /^Wire/i } }` |
+
+---
+
+### ✏️ Updating Data (UPDATE Operations)
+
+MongoDB provides methods to modify existing documents:
+
+```mermaid
+flowchart TB
+    subgraph Update["Update Methods"]
+        A["updateOne()"] --> A1["First matching document"]
+        B["updateMany()"] --> B1["All matching documents"]
+        C["replaceOne()"] --> C1["Replace entire document"]
+    end
+    
+    style Update fill:#fff3e0
+```
+
+#### Update Examples (`update.mongodb.js`)
+
+```javascript
+// 1. Update single field with $set
+db.products.updateOne(
+  { name: "Wireless Mouse" },     // Filter
+  { $set: { price: 899 } }         // Update
+)
+
+// 2. Update multiple documents with $inc (increment)
+db.products.updateMany(
+  { category: "Electronics" },    // All electronics
+  { $inc: { stock: 10 } }          // Add 10 to stock
+)
+
+// 3. Add element to array with $push
+db.products.updateOne(
+  { name: "Wireless Mouse" },
+  { $push: { tags: "Mouse" } }     // Append to tags array
+)
+```
+
+#### Update Operators Reference
+
+| Operator | Description | Example |
+|----------|-------------|--------|
+| **$set** | Set field value | `{ $set: { price: 100 } }` |
+| **$unset** | Remove field | `{ $unset: { oldField: "" } }` |
+| **$inc** | Increment by value | `{ $inc: { stock: -1 } }` |
+| **$mul** | Multiply by value | `{ $mul: { price: 1.1 } }` |
+| **$rename** | Rename field | `{ $rename: { old: "new" } }` |
+| **$min** | Update if smaller | `{ $min: { lowScore: 50 } }` |
+| **$max** | Update if larger | `{ $max: { highScore: 100 } }` |
+| **$push** | Append to array | `{ $push: { tags: "new" } }` |
+| **$pull** | Remove from array | `{ $pull: { tags: "old" } }` |
+| **$addToSet** | Add unique to array | `{ $addToSet: { tags: "unique" } }` |
+| **$pop** | Remove first/last | `{ $pop: { arr: 1 } }` (last) |
+
+---
+
+### 🗑️ Deleting Data (DELETE Operations)
+
+MongoDB provides methods to remove documents:
+
+```javascript
+// Delete single document
+db.contacts.deleteOne({ name: "Alice" })
+
+// Delete multiple documents
+db.contacts.deleteMany({ status: "inactive" })
+
+// Delete all documents in collection
+db.contacts.deleteMany({})
+
+// Drop entire collection
+db.contacts.drop()
+```
+
+**⚠️ Warning:** `deleteMany({})` removes ALL documents but keeps the collection. `drop()` removes the entire collection including indexes.
+
+---
+
+### 🔄 Aggregation Pipeline
+
+The **Aggregation Pipeline** is MongoDB's powerful framework for data transformation and analysis. Documents pass through a sequence of **stages**, each transforming the data.
+
+```mermaid
+flowchart LR
+    subgraph Pipeline["Aggregation Pipeline"]
+        D[("Collection")] --> S1["$match<br/>Filter docs"]
+        S1 --> S2["$group<br/>Group by field"]
+        S2 --> S3["$project<br/>Shape output"]
+        S3 --> S4["$sort<br/>Order results"]
+        S4 --> R["Results"]
+    end
+    
+    style Pipeline fill:#e3f2fd
+```
+
+#### Aggregation Example (`aggregation.mongodb.js`)
+
+```javascript
+// Calculate total sales by category
+db.sales.aggregate([
+  {
+    $group: {
+      _id: "$category",                              // Group by category
+      totalSales: { 
+        $sum: { $multiply: ["$price", "$quantity"] } // Calculate total
+      }
+    }
+  }
+])
+
+// Output:
+// { _id: "Fruit", totalSales: 145 }
+// { _id: "Vegetable", totalSales: 96 }
+```
+
+#### Common Aggregation Stages
+
+| Stage | Description | Example |
+|-------|-------------|--------|
+| **$match** | Filter documents | `{ $match: { status: "active" } }` |
+| **$group** | Group by field(s) | `{ $group: { _id: "$category", count: { $sum: 1 } } }` |
+| **$project** | Reshape documents | `{ $project: { name: 1, total: { $multiply: ["$price", "$qty"] } } }` |
+| **$sort** | Order documents | `{ $sort: { createdAt: -1 } }` |
+| **$limit** | Limit results | `{ $limit: 10 }` |
+| **$skip** | Skip documents | `{ $skip: 20 }` |
+| **$unwind** | Deconstruct array | `{ $unwind: "$tags" }` |
+| **$lookup** | Join collections | `{ $lookup: { from: "orders", ... } }` |
+| **$count** | Count documents | `{ $count: "total" }` |
+
+#### Aggregation Operators
+
+| Operator | Description | Example |
+|----------|-------------|--------|
+| **$sum** | Sum values | `{ $sum: "$amount" }` or `{ $sum: 1 }` for count |
+| **$avg** | Average | `{ $avg: "$score" }` |
+| **$min** | Minimum | `{ $min: "$price" }` |
+| **$max** | Maximum | `{ $max: "$price" }` |
+| **$first** | First in group | `{ $first: "$date" }` |
+| **$last** | Last in group | `{ $last: "$date" }` |
+| **$push** | Accumulate to array | `{ $push: "$item" }` |
+| **$multiply** | Multiply values | `{ $multiply: ["$price", "$qty"] }` |
+| **$add** | Add values | `{ $add: ["$a", "$b"] }` |
+
+---
+
+### 📊 Indexing & Query Optimization
+
+**Indexes** are special data structures that store a portion of the collection's data in an easy-to-traverse form. Without indexes, MongoDB must perform a **collection scan** (examine every document).
+
+```mermaid
+flowchart TB
+    subgraph Without["Without Index"]
+        Q1["Query"] --> CS["Collection Scan<br/>(Check ALL docs)"]
+        CS --> R1["Results"]
+    end
+    
+    subgraph With["With Index"]
+        Q2["Query"] --> IS["Index Scan<br/>(B-tree lookup)"]
+        IS --> R2["Results"]
+    end
+    
+    style Without fill:#ffcdd2
+    style With fill:#c8e6c9
+```
+
+#### Index Types
+
+| Type | Description | Use Case |
+|------|-------------|----------|
+| **Single Field** | Index on one field | Most common queries |
+| **Compound** | Index on multiple fields | Multi-field queries |
+| **Multikey** | Index on array fields | Array element queries |
+| **Text** | Full-text search | Search in text fields |
+| **Geospatial** | Location-based | Geographic queries |
+| **Hashed** | Hash of field value | Sharding key |
+| **TTL** | Auto-expire documents | Session data, logs |
+
+#### Index Examples (`indexex.mongodb.js`)
+
+```javascript
+// 1. View existing indexes
+db.sales.getIndexes()
+// Returns: [{ "v": 2, "key": { "_id": 1 }, "name": "_id_" }]
+// Note: _id index is always created automatically
+
+// 2. Create single field index (ascending)
+db.sales.createIndex({ quantity: 1 })
+// 1 = ascending, -1 = descending
+
+// 3. Create compound index
+db.products.createIndex({ category: 1, price: -1 })
+// Good for: find by category, sorted by price desc
+
+// 4. Create unique index
+db.users.createIndex({ email: 1 }, { unique: true })
+
+// 5. Query using the index
+db.sales.find({ quantity: { $gt: 5 } })
+```
+
+#### Explain Plans for Query Analysis
+
+The `explain()` method shows how MongoDB executes a query:
+
+```javascript
+// Analyze query execution
+db.sales.find({ quantity: { $gt: 5 } }).explain("executionStats")
+```
+
+**Key fields in explain output:**
+
+| Field | Description | Good Value |
+|-------|-------------|------------|
+| **winningPlan.stage** | How query was executed | `IXSCAN` (index scan) |
+| **executionStats.totalDocsExamined** | Documents scanned | Close to `nReturned` |
+| **executionStats.nReturned** | Documents returned | - |
+| **executionStats.executionTimeMillis** | Query time | Lower is better |
+
+```mermaid
+flowchart LR
+    subgraph Stages["Query Execution Stages"]
+        CS["COLLSCAN<br/>❌ Full scan"] 
+        IX["IXSCAN<br/>✅ Index scan"]
+        FE["FETCH<br/>Get full docs"]
+    end
+    
+    style CS fill:#ffcdd2
+    style IX fill:#c8e6c9
+    style FE fill:#fff3e0
+```
+
+**Reading explain output:**
+```javascript
+// Without index (COLLSCAN - bad)
+{
+  "winningPlan": {
+    "stage": "COLLSCAN",  // ❌ Collection scan
+    "direction": "forward"
+  },
+  "executionStats": {
+    "totalDocsExamined": 10000,  // Scanned all docs
+    "nReturned": 50               // Only needed 50
+  }
+}
+
+// With index (IXSCAN - good)
+{
+  "winningPlan": {
+    "stage": "FETCH",
+    "inputStage": {
+      "stage": "IXSCAN",  // ✅ Index scan
+      "indexName": "quantity_1"
+    }
+  },
+  "executionStats": {
+    "totalDocsExamined": 50,  // Only scanned needed docs
+    "nReturned": 50
+  }
+}
+```
+
+---
+
+### 🏗️ MongoDB Architecture Overview
+
+```mermaid
+flowchart TB
+    subgraph Client["Client Applications"]
+        A1["Node.js"] 
+        A2["Python"]
+        A3["Java"]
+    end
+    
+    subgraph Driver["MongoDB Drivers"]
+        D1["mongoose"]
+        D2["pymongo"]
+        D3["MongoDB Java Driver"]
+    end
+    
+    subgraph Server["MongoDB Server"]
+        subgraph Instance["mongod Process"]
+            SE["Storage Engine<br/>(WiredTiger)"]
+            QE["Query Engine"]
+            IDX["Index Manager"]
+        end
+    end
+    
+    subgraph Storage["Data Files"]
+        DB1[("Database 1")]
+        DB2[("Database 2")]
+    end
+    
+    A1 --> D1 --> Server
+    A2 --> D2 --> Server
+    A3 --> D3 --> Server
+    Server --> Storage
+    
+    style Client fill:#e3f2fd
+    style Driver fill:#fff3e0
+    style Server fill:#e8f5e9
+    style Storage fill:#f3e5f5
+```
+
+#### Document Structure Best Practices
+
+| Pattern | When to Use | Example |
+|---------|-------------|--------|
+| **Embedding** | Data accessed together | User with addresses embedded |
+| **Referencing** | Many-to-many, large data | Orders referencing Products by _id |
+| **Hybrid** | Balance of both | Product with embedded reviews but referenced categories |
+
+```javascript
+// Embedding (denormalized)
+{
+  _id: ObjectId("..."),
+  name: "John",
+  addresses: [                    // Embedded array
+    { city: "NYC", zip: "10001" },
+    { city: "LA", zip: "90001" }
+  ]
+}
+
+// Referencing (normalized)
+{
+  _id: ObjectId("..."),
+  name: "iPhone",
+  category_id: ObjectId("...")   // Reference to categories collection
+}
+```
+
+---
+
+### 🚀 Running Task-9
+
+```bash
+# Option 1: Using MongoDB Playground in VS Code
+# Install "MongoDB for VS Code" extension
+# Open any .mongodb.js file and click "Run" button
+
+# Option 2: Using mongosh (MongoDB Shell)
+mongosh "mongodb://localhost:27017"
+# Then copy-paste the commands
+
+# Option 3: Using MongoDB Atlas
+# Connect via connection string in VS Code extension
+```
+
+**Prerequisites:**
+- MongoDB server running locally OR MongoDB Atlas account
+- VS Code with "MongoDB for VS Code" extension (recommended)
+- OR `mongosh` CLI tool installed
+
+### 🔧 Technologies Used (Task-9)
+
+| Technology | Purpose | Usage |
+|------------|---------|-------|
+| **MongoDB** | NoSQL document database | Core database operations |
+| **MongoDB Playground** | VS Code integration | Running .mongodb.js files |
+| **BSON** | Binary JSON format | Document storage format |
+| **Aggregation Framework** | Data processing pipeline | Analytics & transformations |
+
+### 💡 Key Learnings from Task-9
+
+1. **Schema flexibility** - Documents in same collection can have different fields
+2. **Embedded vs Referenced** - Choose based on query patterns and data relationships
+3. **Always create indexes** - For fields frequently used in queries and sorts
+4. **Use explain()** - To verify queries are using indexes efficiently
+5. **Aggregation is powerful** - Can replace complex application logic
+6. **_id is special** - Auto-indexed, immutable, unique per collection
+7. **Array operators** - $push, $pull, $addToSet work directly on arrays
+8. **Projections save bandwidth** - Only fetch fields you need
+9. **Compound indexes order matters** - Follow ESR rule (Equality, Sort, Range)
+10. **TTL indexes** - Great for session data that should auto-expire
 
 ---
 
