@@ -28,6 +28,7 @@
 - [Task-7: Multi-Agent Routing System](#-task-7-multi-agent-routing-system)
 - [Task-8: MongoDB RAG & Vector Search](#-task-8-mongodb-rag--vector-search)
 - [Task-9: MongoDB Fundamentals & CRUD Operations](#-task-9-mongodb-fundamentals--crud-operations)
+- [Task-10: A2A Protocol (Agent-to-Agent Communication)](#-task-10-a2a-protocol-agent-to-agent-communication)
 - [Key Concepts Reference](#-key-concepts-reference)
 - [How to Add New Tasks](#-how-to-add-new-tasks)
 - [Setup & Installation](#-setup--installation)
@@ -259,6 +260,11 @@ training/
 │   ├── delete.mongodb.js        # deleteOne, deleteMany operations
 │   ├── aggregation.mongodb.js   # Aggregation pipeline ($match, $group)
 │   └── indexex.mongodb.js       # Index creation & explain plans
+├── task-10/                     # A2A Protocol (Agent-to-Agent)
+│   ├── __main__.py              # Server entry point with AgentCard
+│   ├── agent_executor.py        # GreetingAgentExecutor implementation
+│   ├── test_client.py           # A2A client test script
+│   └── pyproject.toml           # UV project config with a2a-sdk
 └── .env                         # API keys (not tracked)
 ```
 
@@ -277,6 +283,7 @@ training/
 | Task 7 | Multi-Agent Routing System | ⭐⭐⭐⭐ Expert | ✅ Complete |
 | Task 8 | MongoDB RAG & Vector Search | ⭐⭐⭐ Advanced | ✅ Complete |
 | Task 9 | MongoDB Fundamentals & CRUD | ⭐⭐ Intermediate | ✅ Complete |
+| Task 10 | A2A Protocol (Agent-to-Agent) | ⭐⭐⭐ Advanced | ✅ Complete |
 
 ---
 
@@ -3302,7 +3309,132 @@ mongosh "mongodb://localhost:27017"
 
 ---
 
-## 📚 Key Concepts Reference
+## � Task-10: A2A Protocol (Agent-to-Agent Communication)
+
+### What is A2A?
+
+The **Agent-to-Agent (A2A) Protocol** is Google's open standard for enabling AI agents to communicate with each other, regardless of their underlying framework or vendor. It provides a standardized way for agents to discover each other's capabilities and exchange tasks.
+
+### Key Concepts
+
+```mermaid
+graph LR
+    subgraph "A2A Architecture"
+        A[Client Agent] -->|JSON-RPC| B[A2A Server]
+        B --> C[AgentCard]
+        B --> D[AgentExecutor]
+        C -->|Describes| E[Skills & Capabilities]
+        D -->|Handles| F[Task Execution]
+    end
+    
+    style A fill:#e3f2fd
+    style B fill:#fff3e0
+    style C fill:#e8f5e9
+    style D fill:#fce4ec
+```
+
+| Component | Description |
+|-----------|-------------|
+| **AgentCard** | Metadata describing the agent's name, skills, capabilities, and endpoint URL |
+| **AgentSkill** | Individual capability with ID, name, description, tags, and examples |
+| **AgentExecutor** | Handles incoming requests and produces responses via EventQueue |
+| **A2AStarletteApplication** | HTTP server wrapper using Starlette framework |
+| **InMemoryTaskStore** | Stores task state for request handling |
+
+### 📁 Task-10 Components Overview
+
+#### `__main__.py` - Server Entry Point
+
+```python
+# Defines the AgentCard with skills and capabilities
+from a2a.server.apps import A2AStarletteApplication
+from a2a.types import AgentCard, AgentSkill, AgentCapabilities
+
+skill = AgentSkill(
+    id="hello_world",
+    name="Greet",
+    description="Return a greeting",
+    tags=["greeting", "hello", "world"],
+    examples=["Hey", "Hello", "Hi"],
+)
+
+agent_card = AgentCard(
+    name="Greeting Agent",
+    description="A simple agent that returns a greeting",
+    url="http://localhost:9999/",
+    defaultInputModes=["text"],
+    defaultOutputModes=["text"],
+    skills=[skill],
+    version="1.0.0",
+    capabilities=AgentCapabilities(),
+)
+```
+
+#### `agent_executor.py` - Agent Logic
+
+```python
+from a2a.server.agent_execution import AgentExecutor
+from a2a.server.events.event_queue import EventQueue
+from a2a.utils import new_agent_text_message
+
+class GreetingAgentExecutor(AgentExecutor):
+    async def execute(self, context: RequestContext, event_queue: EventQueue):
+        result = await self.agent.invoke()
+        event_queue.enqueue_event(new_agent_text_message(result))
+
+    async def cancel(self, context: RequestContext, event_queue: EventQueue):
+        raise Exception("Cancel not supported")
+```
+
+### 🚀 Running Task-10
+
+```bash
+# Navigate to task-10
+cd task-10
+
+# Install dependencies (requires UV package manager)
+uv sync
+
+# Run the A2A server
+uv run .
+
+# Server starts at http://localhost:9999
+# AgentCard available at: http://localhost:9999/.well-known/agent.json
+```
+
+### Testing the A2A Server
+
+```bash
+# Run the test client (in another terminal)
+uv run test_client.py
+```
+
+### 🔧 Technologies Used (Task-10)
+
+| Technology | Purpose | Usage |
+|------------|---------|-------|
+| **a2a-sdk** | Google's A2A Protocol SDK | Agent server & client implementation |
+| **Starlette** | ASGI web framework | HTTP server for A2A endpoints |
+| **sse-starlette** | Server-Sent Events | Streaming responses |
+| **uvicorn** | ASGI server | Running the Starlette application |
+| **UV** | Python package manager | Fast dependency management |
+
+### 💡 Key Learnings from Task-10
+
+1. **A2A is vendor-agnostic** - Any agent framework can implement A2A
+2. **AgentCard is discovery** - Clients find agents via `.well-known/agent.json`
+3. **Skills define capabilities** - Each skill has examples for better matching
+4. **EventQueue for responses** - Async pattern for streaming results
+5. **JSON-RPC protocol** - Standard request/response format
+6. **http-server extra required** - `a2a-sdk[http-server]` for Starlette support
+7. **UV simplifies Python** - Modern alternative to pip/venv
+8. **Pydantic models throughout** - Type-safe data validation
+9. **Async execution model** - Non-blocking agent operations
+10. **Interoperability focus** - Designed for multi-agent ecosystems
+
+---
+
+## �📚 Key Concepts Reference
 
 ### LangChain vs LangGraph Comparison
 
