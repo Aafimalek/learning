@@ -29,6 +29,7 @@
 - [Task-8: MongoDB RAG & Vector Search](#-task-8-mongodb-rag--vector-search)
 - [Task-9: MongoDB Fundamentals & CRUD Operations](#-task-9-mongodb-fundamentals--crud-operations)
 - [Task-10: A2A Protocol (Agent-to-Agent Communication)](#-task-10-a2a-protocol-agent-to-agent-communication)
+- [Task-11: Real-Time AI Voice Sales Agent](#-task-11-real-time-ai-voice-sales-agent)
 - [Key Concepts Reference](#-key-concepts-reference)
 - [How to Add New Tasks](#-how-to-add-new-tasks)
 - [Setup & Installation](#-setup--installation)
@@ -265,6 +266,8 @@ training/
 │   ├── agent_executor.py        # GreetingAgentExecutor implementation
 │   ├── test_client.py           # A2A client test script
 │   └── pyproject.toml           # UV project config with a2a-sdk
+├── task-11/                     # Real-Time AI Voice Sales Agent
+│   └── sales-agent-cerebras-livekit.ipynb  # Voice agent notebook with multi-agent support
 └── .env                         # API keys (not tracked)
 ```
 
@@ -284,6 +287,7 @@ training/
 | Task 8 | MongoDB RAG & Vector Search | ⭐⭐⭐ Advanced | ✅ Complete |
 | Task 9 | MongoDB Fundamentals & CRUD | ⭐⭐ Intermediate | ✅ Complete |
 | Task 10 | A2A Protocol (Agent-to-Agent) | ⭐⭐⭐ Advanced | ✅ Complete |
+| Task 11 | Real-Time AI Voice Sales Agent | ⭐⭐⭐⭐ Expert | ✅ Complete |
 
 ---
 
@@ -3434,7 +3438,148 @@ uv run test_client.py
 
 ---
 
-## �📚 Key Concepts Reference
+## 🎙️ Task-11: Real-Time AI Voice Sales Agent
+
+### What is This Task About?
+
+**Task-11** demonstrates building a real-time AI voice sales agent using **Cerebras** (for ultra-fast LLM inference) and **LiveKit** (for real-time voice communication). The agent can have natural voice conversations with customers, answer questions about products, and seamlessly transfer between specialist agents.
+
+### Key Concepts
+
+```mermaid
+graph TB
+    subgraph "Voice Sales Agent Architecture"
+        A[User Voice Input] -->|Cartesia STT| B[Speech-to-Text]
+        B --> C[Cerebras LLM<br/>LLaMA 3.3 70B]
+        C --> D[AI Response]
+        D -->|Cartesia TTS| E[Text-to-Speech]
+        E --> F[Voice Output]
+        
+        subgraph "Multi-Agent System"
+            G[Sales Agent] -->|Transfer| H[Technical Agent]
+            G -->|Transfer| I[Pricing Agent]
+            H -->|Transfer| G
+            H -->|Transfer| I
+            I -->|Transfer| G
+            I -->|Transfer| H
+        end
+    end
+    
+    style A fill:#e3f2fd
+    style C fill:#fff3e0
+    style F fill:#e8f5e9
+```
+
+| Component | Technology | Purpose |
+|-----------|------------|----------|
+| **LLM** | Cerebras (LLaMA 3.3 70B) | Ultra-fast inference for real-time responses |
+| **STT** | Cartesia | Speech-to-Text conversion |
+| **TTS** | Cartesia | Text-to-Speech with multiple voices |
+| **VAD** | Silero | Voice Activity Detection |
+| **Real-time Communication** | LiveKit | WebRTC-based voice streaming |
+| **Framework** | livekit-agents | Agent orchestration and session management |
+
+### 📁 Task-11 Components Overview
+
+#### Core Components
+
+```python
+# Sales Agent with context-aware responses
+class SalesAgent(Agent):
+    def __init__(self):
+        context = load_context()  # Load product info from context/
+        
+        llm = openai.LLM.with_cerebras(model="llama-3.3-70b")
+        stt = cartesia.STT()
+        tts = cartesia.TTS()
+        vad = silero.VAD.load()
+        
+        instructions = f"""
+        You are a sales agent communicating by voice...
+        {context}
+        CRITICAL RULES:
+        - ONLY use information from the context above
+        - DO NOT make up prices, features, or any other details
+        """
+        
+        super().__init__(instructions=instructions, stt=stt, llm=llm, tts=tts, vad=vad)
+```
+
+#### Multi-Agent Transfer System
+
+```python
+# Function tools enable seamless agent transfers
+@function_tool
+async def switch_to_tech_support(self):
+    """Switch to a technical support rep"""
+    await self.session.generate_reply(user_input="Confirm you are transferring to technical support")
+    return TechnicalAgent()
+
+@function_tool
+async def switch_to_pricing(self):
+    """Switch to pricing specialist"""
+    await self.session.generate_reply(user_input="Confirm you are transferring to a pricing specialist")
+    return PricingAgent()
+```
+
+### 🚀 Running Task-11
+
+```bash
+# Required API Keys:
+# - Cerebras API Key: https://cloud.cerebras.ai
+# - LiveKit API Key & Secret: https://livekit.io
+# - Cartesia API Key: https://cartesia.ai
+
+# Open the Jupyter notebook and run cells sequentially
+# The notebook creates a web interface for voice interaction
+```
+
+### Multi-Agent Workflow
+
+```mermaid
+sequenceDiagram
+    participant U as User (Voice)
+    participant S as Sales Agent
+    participant T as Technical Agent
+    participant P as Pricing Agent
+    
+    U->>S: "Hi, tell me about your products"
+    S->>U: Greets and offers help
+    U->>S: "I need technical details"
+    S->>T: switch_to_tech_support()
+    T->>U: "Hi, I'm the technical specialist..."
+    U->>T: "What about pricing?"
+    T->>P: switch_to_pricing()
+    P->>U: "Hello, I'm the pricing specialist..."
+```
+
+### 🔧 Technologies Used (Task-11)
+
+| Technology | Purpose | Usage |
+|------------|---------|-------|
+| **Cerebras** | Ultra-fast LLM inference | LLaMA 3.3 70B model |
+| **LiveKit** | Real-time communication | WebRTC voice streaming |
+| **Cartesia** | Voice AI | STT and TTS services |
+| **Silero VAD** | Voice Activity Detection | Detecting when user speaks |
+| **livekit-agents** | Agent framework | Session management, multi-agent support |
+| **Jupyter** | Interactive environment | Notebook-based development |
+
+### 💡 Key Learnings from Task-11
+
+1. **Real-time voice AI** - Building conversational agents that respond naturally
+2. **Cerebras for speed** - Ultra-fast inference enables real-time conversations
+3. **Multi-agent architecture** - Seamless transfers between specialist agents
+4. **Context grounding** - Agents only use provided context to avoid hallucinations
+5. **Voice-first design** - Prompts designed for spoken output (no bullets, etc.)
+6. **Function tools for routing** - `@function_tool` decorator enables agent transfers
+7. **Different voices per agent** - Each specialist has a unique voice identity
+8. **LiveKit integration** - Enterprise-grade real-time communication
+9. **VAD for natural conversation** - Silero detects when users start/stop speaking
+10. **Jupyter notebook workflow** - Interactive development with embedded voice UI
+
+---
+
+## 📚 Key Concepts Reference
 
 ### LangChain vs LangGraph Comparison
 
