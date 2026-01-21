@@ -1,0 +1,30 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+
+# n8n runtime data (DB, workflows, credentials)
+n8n_data/
+
+# Config and cookies (secrets; data/config.json.example stays tracked)
+data/config.json
+data/cookies.json
+
+# OS and editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Logs and temp
+*.log
+npm-debug.log*
+.npm
+
+# Build / output (if added later)
+dist/
+build/

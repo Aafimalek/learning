@@ -1,0 +1,5 @@
+{
+  "GROQ_API_KEY": "your-groq-api-key",
+  "X_USER": "your_twitter_email_or_handle",
+  "X_PASSWORD": "your_password_or_app_password"
+}

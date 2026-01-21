@@ -1,0 +1,173 @@
+{
+  "name": "Twitter AI/ML Reply Automation",
+  "nodes": [
+    {
+      "id": "schedule",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [100, 300],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 4
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "manual",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [100, 480],
+      "parameters": {}
+    },
+    {
+      "id": "check-counter",
+      "name": "Check counter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [350, 300],
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst path = '/data/replyCount.json';\nlet data = { count: 0 };\ntry {\n  data = JSON.parse(fs.readFileSync(path, 'utf8'));\n} catch (e) {}\nconst target = (typeof data.target === 'number' && data.target > 0) ? data.target : 50;\nif (data.count >= target) { return []; }\nreturn [{ json: { count: data.count } }];"
+      }
+    },
+    {
+      "id": "load-config",
+      "name": "Load config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [600, 300],
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nlet c = {};\ntry { c = JSON.parse(fs.readFileSync('/data/config.json', 'utf8')); } catch (e) {}\nconst xUser = (c && c.X_USER) ? String(c.X_USER).trim() : '';\nconst xPassword = (c && c.X_PASSWORD) ? String(c.X_PASSWORD) : '';\nif (!xUser || !xPassword) throw new Error('X_USER and X_PASSWORD required in /data/config.json for login. Add: \"X_USER\": \"your_email_or_handle\", \"X_PASSWORD\": \"your_password_or_app_password\". See docs/setup.md');\nreturn [{ json: { xUser, xPassword } }];"
+      }
+    },
+    {
+      "id": "login",
+      "name": "Login",
+      "type": "n8n-nodes-puppeteer.puppeteer",
+      "typeVersion": 1,
+      "position": [725, 300],
+      "parameters": {
+        "operation": "runScript",
+        "jsCode": "const { xUser, xPassword } = $input.first().json;\nif (!xUser || !xPassword) throw new Error('xUser and xPassword required from Load config');\nawait $page.goto('https://twitter.com/i/flow/login', { waitUntil: 'networkidle2', timeout: 30000 });\nawait $page.waitForSelector('input[autocomplete=\"username\"]', { visible: true, timeout: 15000 });\nawait $page.type('input[autocomplete=\"username\"]', xUser, { delay: 50 });\nawait $page.evaluate(() => { const b = [...document.querySelectorAll('button[role=\"button\"]')].find(el => /Next/i.test(el.innerText)); if (b) b.click(); });\nawait new Promise(r => setTimeout(r, 2500));\nawait $page.waitForSelector('input[name=\"password\"], input[type=\"password\"]', { visible: true, timeout: 15000 });\nawait $page.type('input[name=\"password\"], input[type=\"password\"]', xPassword, { delay: 50 });\nawait $page.evaluate(() => { const b = [...document.querySelectorAll('button[role=\"button\"]')].find(el => /Log in/i.test(el.innerText)); if (b) b.click(); });\nawait $page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 60000 });\nconst cookies = await $page.cookies();\nreturn [{ json: { cookies } }];"
+      }
+    },
+    {
+      "id": "scrape",
+      "name": "Scrape feed",
+      "type": "n8n-nodes-puppeteer.puppeteer",
+      "typeVersion": 1,
+      "position": [850, 300],
+      "parameters": {
+        "operation": "runScript",
+        "jsCode": "const { cookies } = $input.first().json;\nawait $page.setCookie(...cookies);\nawait $page.goto('https://twitter.com/home', { waitUntil: 'networkidle2' });\nawait $page.waitForSelector('article[data-testid=\"tweet\"]', { timeout: 15000 });\nfor (let i = 0; i < 4; i++) {\n  await $page.evaluate(() => window.scrollBy(0, 800));\n  await new Promise(r => setTimeout(r, 1500));\n}\nconst tweets = await $page.$$eval('article[data-testid=\"tweet\"]', (arts) =>\n  arts.map((a) => {\n    const text = a.querySelector('div[data-testid=\"tweetText\"]')?.innerText || '';\n    const link = a.querySelector('a[href*=\"/status/\"]')?.href || '';\n    const id = (link.match(/status\\/(\\d+)/) || [])[1];\n    return { text, url: link, id };\n  })\n);\nreturn tweets.slice(0, 50).filter((t) => t.id).map((t) => ({ json: { ...t, cookies } }));"
+      }
+    },
+    {
+      "id": "filter-replied",
+      "name": "Filter replied",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 300],
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nlet repliedIds = [];\ntry {\n  repliedIds = JSON.parse(fs.readFileSync('/data/repliedIds.json', 'utf8'));\n} catch (e) {}\nconst set = new Set(repliedIds);\nreturn $input.all().filter((i) => !set.has(i.json.id)).map((i) => ({ json: i.json }));"
+      }
+    },
+    {
+      "id": "classify-groq",
+      "name": "Classify with Groq",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1350, 300],
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nlet key = '';\ntry {\n  const c = JSON.parse(fs.readFileSync('/data/config.json', 'utf8'));\n  key = (c && c.GROQ_API_KEY) ? String(c.GROQ_API_KEY) : '';\n} catch (e) {}\nif (!key) throw new Error('GROQ_API_KEY missing. Create /data/config.json with {\"GROQ_API_KEY\":\"gsk_...\"}. See docs/setup.md');\nconst tweets = $input.all().map((i) => i.json);\nif (tweets.length === 0) return [];\nconst prompt = 'Classify which tweets are about AI, ML, or related tech news. Reply ONLY with a JSON array of 0-based indices. No other text.\\n\\n' +\n  tweets.map((t, i) => i + ': ' + (t.text || '').replace(/\\n/g, ' ')).join('\\n');\nconst res = await fetch('https://api.groq.com/openai/v1/chat/completions', {\n  method: 'POST',\n  headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },\n  body: JSON.stringify({\n    model: 'llama-3.1-8b-instant',\n    max_tokens: 300,\n    temperature: 0,\n    messages: [{ role: 'user', content: prompt }]\n  })\n});\nconst data = await res.json();\nconst raw = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '[]';\nlet indices = [];\ntry { indices = JSON.parse(raw); } catch (e) {}\nif (!Array.isArray(indices)) indices = [];\nreturn tweets.filter((_, i) => indices.includes(i)).map((t) => ({ json: t }));"
+      }
+    },
+    {
+      "id": "limit",
+      "name": "Limit",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [1600, 300],
+      "parameters": {
+        "maxItems": 5
+      }
+    },
+    {
+      "id": "generate-reply",
+      "name": "Generate reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1850, 300],
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nlet key = '';\ntry {\n  const c = JSON.parse(fs.readFileSync('/data/config.json', 'utf8'));\n  key = (c && c.GROQ_API_KEY) ? String(c.GROQ_API_KEY) : '';\n} catch (e) {}\nif (!key) throw new Error('GROQ_API_KEY missing. Create /data/config.json with {\"GROQ_API_KEY\":\"gsk_...\"}. See docs/setup.md');\nconst sys = 'You write short, natural, helpful replies to tweets. Maximum 270 characters. No spam, no unsolicited links. Be conversational and relevant.';\nconst items = $input.all();\nfor (const it of items) {\n  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {\n    method: 'POST',\n    headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },\n    body: JSON.stringify({\n      model: 'llama-3.1-8b-instant',\n      max_tokens: 300,\n      temperature: 0,\n      messages: [\n        { role: 'system', content: sys },\n        { role: 'user', content: 'Tweet: ' + (it.json.text || '') + '\\n\\nGenerate one reply.' }\n      ]\n    })\n  });\n  const data = await res.json();\n  it.json.replyText = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';\n}\nreturn items.map((i) => ({ json: i.json }));"
+      }
+    },
+    {
+      "id": "post-replies",
+      "name": "Post replies",
+      "type": "n8n-nodes-puppeteer.puppeteer",
+      "typeVersion": 1,
+      "position": [2100, 300],
+      "parameters": {
+        "operation": "runScript",
+        "jsCode": "const items = $input.all().map((i) => i.json);\nif (items.length === 0) return [];\nconst { cookies } = items[0];\nawait $page.setCookie(...cookies);\nconst out = [];\nfor (const { url, replyText, id } of items) {\n  try {\n    await $page.goto(url, { waitUntil: 'networkidle2' });\n    await $page.waitForSelector('div[data-testid=\"reply\"]', { visible: true });\n    await $page.click('div[data-testid=\"reply\"]');\n    await $page.waitForSelector('div[data-testid=\"tweetTextarea_0\"], div[role=\"textbox\"]', { visible: true });\n    await $page.type('div[data-testid=\"tweetTextarea_0\"], div[role=\"textbox\"]', replyText, { delay: 50 });\n    await $page.waitForSelector('div[data-testid=\"tweetButtonInline\"], div[data-testid=\"tweetButton\"]', { visible: true });\n    await $page.click('div[data-testid=\"tweetButtonInline\"], div[data-testid=\"tweetButton\"]');\n    out.push({ json: { id, url, replyText, posted: true } });\n  } catch (e) {\n    out.push({ json: { id, url, replyText, posted: false, error: String(e && e.message) } });\n  }\n  await new Promise((r) => setTimeout(r, 10000 + Math.random() * 20000));\n}\nreturn out;"
+      }
+    },
+    {
+      "id": "persist",
+      "name": "Persist",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2350, 300],
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst items = $input.all();\nconst n = items.length;\nif (n === 0) return [];\nconst countPath = '/data/replyCount.json';\nlet countData = { count: 0 };\ntry {\n  countData = JSON.parse(fs.readFileSync(countPath, 'utf8'));\n} catch (e) {}\ncountData.count += n;\nfs.writeFileSync(countPath, JSON.stringify(countData, null, 2));\nconst idsPath = '/data/repliedIds.json';\nlet ids = [];\ntry {\n  ids = JSON.parse(fs.readFileSync(idsPath, 'utf8'));\n} catch (e) {}\nconst postedIds = items.filter((i) => i.json.posted !== false).map((i) => i.json.id).filter(Boolean);\nids.push(...postedIds);\nfs.writeFileSync(idsPath, JSON.stringify(ids, null, 2));\nreturn items;"
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [[{ "node": "Check counter", "type": "main", "index": 0 }]]
+    },
+    "Manual Trigger": {
+      "main": [[{ "node": "Check counter", "type": "main", "index": 0 }]]
+    },
+    "Check counter": {
+      "main": [[{ "node": "Load config", "type": "main", "index": 0 }]]
+    },
+    "Load config": {
+      "main": [[{ "node": "Login", "type": "main", "index": 0 }]]
+    },
+    "Login": {
+      "main": [[{ "node": "Scrape feed", "type": "main", "index": 0 }]]
+    },
+    "Scrape feed": {
+      "main": [[{ "node": "Filter replied", "type": "main", "index": 0 }]]
+    },
+    "Filter replied": {
+      "main": [[{ "node": "Classify with Groq", "type": "main", "index": 0 }]]
+    },
+    "Classify with Groq": {
+      "main": [[{ "node": "Limit", "type": "main", "index": 0 }]]
+    },
+    "Limit": {
+      "main": [[{ "node": "Generate reply", "type": "main", "index": 0 }]]
+    },
+    "Generate reply": {
+      "main": [[{ "node": "Post replies", "type": "main", "index": 0 }]]
+    },
+    "Post replies": {
+      "main": [[{ "node": "Persist", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}
