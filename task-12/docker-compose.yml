@@ -15,8 +15,8 @@ services:
       - N8N_HOST=0.0.0.0
       - N8N_PORT=5678
       - NODE_FUNCTION_ALLOW_EXTERNAL=puppeteer
-      # Allow fs in Code nodes (for /data/replyCount.json, repliedIds.json, config.json, cookies.json)
-      - NODE_FUNCTION_ALLOW_BUILTIN=fs
+      # Allow fs and https in Code nodes (for /data files and Groq API calls)
+      - NODE_FUNCTION_ALLOW_BUILTIN=fs,https
       # Load n8n-nodes-puppeteer from the image (package root)
       - N8N_CUSTOM_EXTENSIONS=/opt/n8n-custom-nodes/node_modules/n8n-nodes-puppeteer
       # Twitter automation config (see docs/setup.md)
@@ -31,3 +31,8 @@ services:
       - ./n8n_data:/home/node/.n8n
       # replyCount.json, repliedIds.json, config.json, cookies.json
       - ./data:/data
+    # Security options for Chromium sandbox (required in Docker)
+    security_opt:
+      - seccomp=unconfined
+    cap_add:
+      - SYS_ADMIN
