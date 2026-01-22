@@ -30,6 +30,7 @@
 - [Task-9: MongoDB Fundamentals & CRUD Operations](#-task-9-mongodb-fundamentals--crud-operations)
 - [Task-10: A2A Protocol (Agent-to-Agent Communication)](#-task-10-a2a-protocol-agent-to-agent-communication)
 - [Task-11: Real-Time AI Voice Sales Agent](#-task-11-real-time-ai-voice-sales-agent)
+- [Task-12: X.com AI/ML Reply Automation with n8n](#-task-12-xcom-aiml-reply-automation-with-n8n)
 - [Key Concepts Reference](#-key-concepts-reference)
 - [How to Add New Tasks](#-how-to-add-new-tasks)
 - [Setup & Installation](#-setup--installation)
@@ -53,6 +54,8 @@ This repository serves as my personal **learning logbook** for Generative AI (Ge
 | **MongoDB Atlas** | Cloud database with Vector Search | Task 8 |
 | **FastAPI** | Modern REST API framework | Task 8 |
 | **Pydantic** | Data validation & structured outputs | All Tasks |
+| **n8n** | Workflow automation platform | Task 12 |
+| **Puppeteer** | Browser automation library | Task 12 |
 
 ### 🗺️ Learning Journey Map
 
@@ -288,6 +291,7 @@ training/
 | Task 9 | MongoDB Fundamentals & CRUD | ⭐⭐ Intermediate | ✅ Complete |
 | Task 10 | A2A Protocol (Agent-to-Agent) | ⭐⭐⭐ Advanced | ✅ Complete |
 | Task 11 | Real-Time AI Voice Sales Agent | ⭐⭐⭐⭐ Expert | ✅ Complete |
+| Task 12 | X.com AI/ML Reply Automation | ⭐⭐⭐ Advanced | ✅ Complete |
 
 ---
 
@@ -3576,6 +3580,135 @@ sequenceDiagram
 8. **LiveKit integration** - Enterprise-grade real-time communication
 9. **VAD for natural conversation** - Silero detects when users start/stop speaking
 10. **Jupyter notebook workflow** - Interactive development with embedded voice UI
+
+---
+
+## 🤖 Task-12: X.com AI/ML Reply Automation with n8n
+
+### What is This Task About?
+
+**Task-12** demonstrates building an automated workflow that scrapes your X.com (Twitter) home feed, identifies AI/ML-related tweets using Groq AI, generates intelligent replies, and posts them automatically. Built with **n8n** (workflow automation), **Puppeteer** (web scraping), and **Docker**.
+
+### Key Concepts
+
+```mermaid
+graph TB
+    subgraph "X.com AI/ML Reply Automation"
+        A[Schedule Trigger<br/>Every 4 hours] --> B[Check Counter<br/>Target reached?]
+        B -->|No| C[Load X.com Cookies]
+        C --> D[Scrape Home Feed<br/>Puppeteer]
+        D --> E[Filter Replied Tweets]
+        E --> F[Classify with Groq AI<br/>AI/ML Related?]
+        F -->|Yes| G[Limit Batch Size<br/>5 tweets]
+        G --> H[Generate AI Reply<br/>Groq LLM]
+        H --> I[Post Reply to X.com<br/>Puppeteer]
+        I --> J[Update Counter & IDs]
+        J --> K[Persist Data]
+        B -->|Yes| L[Stop Workflow]
+    end
+    
+    style A fill:#e3f2fd
+    style F fill:#fff3e0
+    style H fill:#f3e5f5
+    style I fill:#e8f5e9
+```
+
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| **Workflow Engine** | n8n | Visual workflow automation and orchestration |
+| **Web Scraping** | Puppeteer | Browser automation for X.com feed scraping |
+| **AI Classification** | Groq (Llama) | Identify AI/ML-related tweets |
+| **Reply Generation** | Groq LLM | Generate contextual, natural replies |
+| **Authentication** | Cookie-based | Secure X.com session using exported cookies |
+| **Containerization** | Docker | Isolated environment with n8n + Puppeteer + Chromium |
+| **Data Persistence** | JSON files | Track replied tweets and counters |
+
+### 📁 Task-12 Components Overview
+
+#### Core Architecture
+
+```mermaid
+sequenceDiagram
+    participant S as Schedule Trigger
+    participant N as n8n Workflow
+    participant P as Puppeteer
+    participant G as Groq AI
+    participant X as X.com
+    
+    S->>N: Trigger every 4 hours
+    N->>N: Check reply counter
+    N->>P: Load cookies & scrape feed
+    P->>X: Navigate to home feed
+    X->>P: Return tweet data
+    P->>N: Extract tweets
+    N->>N: Filter already replied
+    N->>G: Classify AI/ML tweets
+    G->>N: Return classification
+    N->>G: Generate reply for each tweet
+    G->>N: Return AI-generated reply
+    N->>P: Post reply to X.com
+    P->>X: Submit reply
+    N->>N: Update counters & track IDs
+```
+
+#### Workflow Steps
+
+1. **Check Counter** - Verifies if target reply count (default: 50) is reached
+2. **Load Cookies** - Loads X.com authentication cookies from `data/cookies.json`
+3. **Scrape Feed** - Uses Puppeteer to scrape home feed and extract tweet data
+4. **Filter Replied** - Removes tweets that have already been replied to
+5. **Classify with Groq** - Uses Groq's Llama model to identify AI/ML-related tweets
+6. **Limit** - Limits to batch size (e.g., 5 tweets per run)
+7. **Generate Reply** - Generates contextual AI replies for each tweet
+8. **Post Replies** - Uses Puppeteer to post replies to X.com
+9. **Persist** - Updates reply counters and tracks replied tweet IDs
+
+### 🔧 Technologies Used (Task-12)
+
+| Technology | Purpose | Usage |
+|------------|---------|-------|
+| **n8n** | Workflow automation | Visual workflow builder and execution engine |
+| **Puppeteer** | Browser automation | Scraping X.com feed and posting replies |
+| **Groq API** | AI inference | Fast LLM inference for classification and reply generation |
+| **Docker** | Containerization | Isolated environment with all dependencies |
+| **Chromium** | Headless browser | Browser engine for Puppeteer |
+| **JSON** | Data storage | Configuration, cookies, and tracking data |
+
+### 🚀 Features
+
+- **Automated Feed Scraping**: Scrapes your X.com home feed using Puppeteer
+- **AI-Powered Classification**: Uses Groq's Llama model to identify AI/ML-related tweets
+- **Smart Reply Generation**: Generates contextual, natural replies using AI
+- **Duplicate Prevention**: Tracks replied tweets to avoid duplicates
+- **Rate Limiting**: Built-in delays and batch limits to respect X.com's rate limits
+- **Cookie-Based Auth**: Secure authentication using exported browser cookies
+- **Scheduled Execution**: Runs automatically every 4 hours (configurable)
+
+### 💡 Key Learnings from Task-12
+
+1. **n8n workflow automation** - Building complex automation workflows visually
+2. **Puppeteer for web scraping** - Browser automation for dynamic content
+3. **Cookie-based authentication** - Using exported browser cookies for session management
+4. **AI-powered content filtering** - Using LLMs to classify and filter content
+5. **Duplicate tracking** - Preventing duplicate actions using persistent storage
+6. **Rate limiting strategies** - Implementing delays and batch limits
+7. **Docker containerization** - Packaging complex dependencies in containers
+8. **Data persistence** - Using JSON files for simple state management
+9. **Workflow orchestration** - Coordinating multiple steps in an automation pipeline
+10. **Error handling** - Managing failures in automated workflows
+
+### 📋 Quick Start
+
+1. **Clone and navigate** to `task-12/`
+2. **Set up configuration**: Copy `data/config.json.example` to `data/config.json` and add your Groq API key
+3. **Export X.com cookies**: Export your X.com session cookies and save as `data/cookies.json`
+4. **Initialize data files**: Create `replyCount.json` and `repliedIds.json`
+5. **Build and start**: Run `docker compose build && docker compose up -d`
+6. **Access n8n**: Open `http://localhost:5678`
+7. **Import workflow**: Import `workflows/twitter-ai-reply-automation.json`
+8. **Activate**: Enable the workflow and it will run automatically
+
+For detailed setup instructions, see [task-12/README.md](task-12/README.md).
 
 ---
 
