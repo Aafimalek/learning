@@ -37,24 +37,13 @@
       }
     },
     {
-      "id": "load-config",
-      "name": "Load config",
+      "id": "load-cookies",
+      "name": "Load cookies",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [600, 300],
       "parameters": {
-        "jsCode": "const fs = require('fs');\nlet c = {};\ntry { c = JSON.parse(fs.readFileSync('/data/config.json', 'utf8')); } catch (e) {}\nconst xUser = (c && c.X_USER) ? String(c.X_USER).trim() : '';\nconst xPassword = (c && c.X_PASSWORD) ? String(c.X_PASSWORD) : '';\nif (!xUser || !xPassword) throw new Error('X_USER and X_PASSWORD required in /data/config.json for login. Add: \"X_USER\": \"your_email_or_handle\", \"X_PASSWORD\": \"your_password_or_app_password\". See docs/setup.md');\nreturn [{ json: { xUser, xPassword } }];"
-      }
-    },
-    {
-      "id": "login",
-      "name": "Login",
-      "type": "n8n-nodes-puppeteer.puppeteer",
-      "typeVersion": 1,
-      "position": [725, 300],
-      "parameters": {
-        "operation": "script",
-        "jsCode": "const { xUser, xPassword } = $input.first().json;\nif (!xUser || !xPassword) throw new Error('xUser and xPassword required from Load config');\nawait $page.goto('https://twitter.com/i/flow/login', { waitUntil: 'networkidle2', timeout: 30000 });\nawait $page.waitForSelector('input[autocomplete=\"username\"]', { visible: true, timeout: 15000 });\nawait $page.type('input[autocomplete=\"username\"]', xUser, { delay: 50 });\nawait $page.evaluate(() => { const b = [...document.querySelectorAll('button[role=\"button\"]')].find(el => /Next/i.test(el.innerText)); if (b) b.click(); });\nawait new Promise(r => setTimeout(r, 2500));\nawait $page.waitForSelector('input[name=\"password\"], input[type=\"password\"]', { visible: true, timeout: 15000 });\nawait $page.type('input[name=\"password\"], input[type=\"password\"]', xPassword, { delay: 50 });\nawait $page.evaluate(() => { const b = [...document.querySelectorAll('button[role=\"button\"]')].find(el => /Log in/i.test(el.innerText)); if (b) b.click(); });\nawait $page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 60000 });\nconst cookies = await $page.cookies();\nreturn [{ json: { cookies } }];"
+        "jsCode": "const fs = require('fs');\nconst path = '/data/cookies.json';\ntry {\n  const cookies = JSON.parse(fs.readFileSync(path, 'utf8'));\n  const cookieArray = Array.isArray(cookies) ? cookies : (cookies.cookies || []);\n  if (!cookieArray.length) throw new Error('No cookies found in /data/cookies.json');\n  return [{ json: { cookies: cookieArray } }];\n} catch (e) {\n  throw new Error('Failed to load cookies from /data/cookies.json: ' + String(e.message) + '. Export cookies from your browser and save to data/cookies.json. See docs/setup.md');\n}"
       }
     },
     {
@@ -65,7 +54,7 @@
       "position": [850, 300],
       "parameters": {
         "operation": "script",
-        "jsCode": "const { cookies } = $input.first().json;\nawait $page.setCookie(...cookies);\nawait $page.goto('https://twitter.com/home', { waitUntil: 'networkidle2' });\nawait $page.waitForSelector('article[data-testid=\"tweet\"]', { timeout: 15000 });\nfor (let i = 0; i < 4; i++) {\n  await $page.evaluate(() => window.scrollBy(0, 800));\n  await new Promise(r => setTimeout(r, 1500));\n}\nconst tweets = await $page.$$eval('article[data-testid=\"tweet\"]', (arts) =>\n  arts.map((a) => {\n    const text = a.querySelector('div[data-testid=\"tweetText\"]')?.innerText || '';\n    const link = a.querySelector('a[href*=\"/status/\"]')?.href || '';\n    const id = (link.match(/status\\/(\\d+)/) || [])[1];\n    return { text, url: link, id };\n  })\n);\nreturn tweets.slice(0, 50).filter((t) => t.id).map((t) => ({ json: { ...t, cookies } }));"
+        "jsCode": "const { cookies } = $input.first().json;\nawait $page.setCookie(...cookies);\nawait $page.goto('https://x.com/home', { waitUntil: 'networkidle2' });\nawait $page.waitForSelector('article[data-testid=\"tweet\"]', { timeout: 15000 });\nfor (let i = 0; i < 4; i++) {\n  await $page.evaluate(() => window.scrollBy(0, 800));\n  await new Promise(r => setTimeout(r, 1500));\n}\nconst tweets = await $page.$$eval('article[data-testid=\"tweet\"]', (arts) =>\n  arts.map((a) => {\n    const text = a.querySelector('div[data-testid=\"tweetText\"]')?.innerText || '';\n    const link = a.querySelector('a[href*=\"/status/\"]')?.href || '';\n    const id = (link.match(/status\\/(\\d+)/) || [])[1];\n    return { text, url: link, id };\n  })\n);\nreturn tweets.slice(0, 50).filter((t) => t.id).map((t) => ({ json: { ...t, cookies } }));"
       }
     },
     {
@@ -138,12 +127,9 @@
       "main": [[{ "node": "Check counter", "type": "main", "index": 0 }]]
     },
     "Check counter": {
-      "main": [[{ "node": "Load config", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "Load cookies", "type": "main", "index": 0 }]]
     },
-    "Load config": {
-      "main": [[{ "node": "Login", "type": "main", "index": 0 }]]
-    },
-    "Login": {
+    "Load cookies": {
       "main": [[{ "node": "Scrape feed", "type": "main", "index": 0 }]]
     },
     "Scrape feed": {

@@ -12,6 +12,9 @@ n8n_data/
 # Config and cookies (secrets; data/config.json.example stays tracked)
 data/config.json
 data/cookies.json
+cookies.json
+data/repliedIds.json
+data/replyCount.json
 
 # OS and editor
 .DS_Store
