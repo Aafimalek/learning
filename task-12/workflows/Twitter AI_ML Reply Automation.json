@@ -1,0 +1,282 @@
+{
+  "name": "Twitter AI/ML Reply Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 2
+            },
+            {}
+          ]
+        }
+      },
+      "id": "851b6cfc-68f2-43f1-8666-435dd6a3cce2",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        1344,
+        336
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "3035fa46-c40e-4b64-bf96-6f8022767ae6",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        1344,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst path = '/data/replyCount.json';\nlet data = { count: 0 };\ntry {\n  data = JSON.parse(fs.readFileSync(path, 'utf8'));\n} catch (e) {}\nconst target = (typeof data.target === 'number' && data.target > 0) ? data.target : 50;\nif (data.count >= target) { return []; }\nreturn [{ json: { count: data.count } }];"
+      },
+      "id": "9243f41f-e50e-4357-a848-bedd56b5996f",
+      "name": "Check counter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst path = '/data/cookies.json';\ntry {\n  const cookies = JSON.parse(fs.readFileSync(path, 'utf8'));\n  const cookieArray = Array.isArray(cookies) ? cookies : (cookies.cookies || []);\n  if (!cookieArray.length) throw new Error('No cookies found in /data/cookies.json');\n  return [{ json: { cookies: cookieArray } }];\n} catch (e) {\n  throw new Error('Failed to load cookies from /data/cookies.json: ' + String(e.message) + '. Export cookies from your browser and save to data/cookies.json. See docs/setup.md');\n}"
+      },
+      "id": "ddc7cc55-a219-4d77-9cd2-dc40cc496731",
+      "name": "Load cookies",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1856,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "runCustomScript",
+        "scriptCode": "const { cookies } = $input.first().json;\nif (!cookies || !Array.isArray(cookies) || cookies.length === 0) {\n  throw new Error('Cookies not found or invalid from Load cookies node');\n}\n\n// Navigate to x.com first to establish domain\nawait $page.goto('https://x.com', { waitUntil: 'domcontentloaded' });\n\n// Ensure cookies have correct domain\nconst cookiesWithDomain = cookies.map(cookie => ({\n  ...cookie,\n  domain: cookie.domain || '.x.com',\n  url: cookie.url || 'https://x.com'\n}));\n\n// Set cookies\nawait $page.setCookie(...cookiesWithDomain);\n\n// Navigate to home feed\nawait $page.goto('https://x.com/home', { waitUntil: 'networkidle2' });\n\n// Wait for tweets to load\nawait $page.waitForSelector('article[data-testid=\"tweet\"]', { timeout: 20000 });\n\n// Scroll to load more tweets\nfor (let i = 0; i < 4; i++) {\n  await $page.evaluate(() => window.scrollBy(0, 800));\n  await new Promise(r => setTimeout(r, 1500));\n}\n\n// Scrape tweets\nconst tweets = await $page.$$eval('article[data-testid=\"tweet\"]', (arts) =>\n  arts.map((a) => {\n    const text = a.querySelector('div[data-testid=\"tweetText\"]')?.innerText || '';\n    const link = a.querySelector('a[href*=\"/status/\"]')?.href || '';\n    const id = (link.match(/status\\/(\\d+)/) || [])[1];\n    return { text, url: link, id };\n  })\n);\n\n// Return tweets with cookies attached\nreturn tweets.slice(0, 50).filter((t) => t.id).map((t) => ({ json: { ...t, cookies } }));",
+        "options": {}
+      },
+      "id": "ebd1f08d-2ceb-42ed-a870-64876df7d183",
+      "name": "Scrape feed",
+      "type": "n8n-nodes-puppeteer.puppeteer",
+      "typeVersion": 1,
+      "position": [
+        2096,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nlet repliedIds = [];\ntry {\n  repliedIds = JSON.parse(fs.readFileSync('/data/repliedIds.json', 'utf8'));\n} catch (e) {}\nconst set = new Set(repliedIds);\nreturn $input.all().filter((i) => !set.has(i.json.id)).map((i) => ({ json: i.json }));"
+      },
+      "id": "d55c4aa2-01ef-449f-ae27-64bfef3854d8",
+      "name": "Filter replied",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2352,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst https = require('https');\nlet key = '';\ntry {\n  const c = JSON.parse(fs.readFileSync('/data/config.json', 'utf8'));\n  key = (c && c.GROQ_API_KEY) ? String(c.GROQ_API_KEY) : '';\n} catch (e) {}\nif (!key) throw new Error('GROQ_API_KEY missing. Create /data/config.json with {\"GROQ_API_KEY\":\"gsk_...\"}. See docs/setup.md');\nconst tweets = $input.all().map((i) => i.json);\nif (tweets.length === 0) return [];\nconst prompt = 'Classify which tweets are about AI, ML, or related tech news. Reply ONLY with a JSON array of 0-based indices. No other text.\\n\\n' +\n  tweets.map((t, i) => i + ': ' + (t.text || '').replace(/\\n/g, ' ')).join('\\n');\nconst postData = JSON.stringify({\n  model: 'llama-3.1-8b-instant',\n  max_tokens: 300,\n  temperature: 0,\n  messages: [{ role: 'user', content: prompt }]\n});\nconst data = await new Promise((resolve, reject) => {\n  const req = https.request({\n    hostname: 'api.groq.com',\n    path: '/openai/v1/chat/completions',\n    method: 'POST',\n    headers: {\n      'Authorization': 'Bearer ' + key,\n      'Content-Type': 'application/json',\n      'Content-Length': Buffer.byteLength(postData)\n    }\n  }, (res) => {\n    let body = '';\n    res.on('data', (chunk) => { body += chunk; });\n    res.on('end', () => {\n      try { resolve(JSON.parse(body)); } catch (e) { reject(e); }\n    });\n  });\n  req.on('error', reject);\n  req.write(postData);\n  req.end();\n});\nconst raw = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '[]';\nlet indices = [];\ntry { indices = JSON.parse(raw); } catch (e) {}\nif (!Array.isArray(indices)) indices = [];\nreturn tweets.filter((_, i) => indices.includes(i)).map((t) => ({ json: t }));"
+      },
+      "id": "d4fd6451-4b90-4089-ac17-dae155c46e02",
+      "name": "Classify with Groq",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2608,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "maxItems": 5
+      },
+      "id": "5889b691-013f-4f46-96fe-53eebebfa164",
+      "name": "Limit",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        2848,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst https = require('https');\nlet key = '';\ntry {\n  const c = JSON.parse(fs.readFileSync('/data/config.json', 'utf8'));\n  key = (c && c.GROQ_API_KEY) ? String(c.GROQ_API_KEY) : '';\n} catch (e) {}\nif (!key) throw new Error('GROQ_API_KEY missing. Create /data/config.json with {\"GROQ_API_KEY\":\"gsk_...\"}. See docs/setup.md');\nconst sys = 'produce responses that feel natural and human. write in a relaxed and casual tone. never use em dashes. always write entirely in small caps. keep sentences simple and conversational. do not sound robotic. do not explain your style. just answer the user’s request in this voice. Maximum 270 characters. No spam, no unsolicited links. Be conversational and relevant.';\nconst items = $input.all();\nfor (const it of items) {\n  const postData = JSON.stringify({\n    model: 'moonshotai/kimi-k2-instruct-0905',\n    max_tokens: 300,\n    temperature: 0,\n    messages: [\n      { role: 'system', content: sys },\n      { role: 'user', content: 'Tweet: ' + (it.json.text || '') + '\\n\\nGenerate one reply.' }\n    ]\n  });\n  const data = await new Promise((resolve, reject) => {\n    const req = https.request({\n      hostname: 'api.groq.com',\n      path: '/openai/v1/chat/completions',\n      method: 'POST',\n      headers: {\n        'Authorization': 'Bearer ' + key,\n        'Content-Type': 'application/json',\n        'Content-Length': Buffer.byteLength(postData)\n      }\n    }, (res) => {\n      let body = '';\n      res.on('data', (chunk) => { body += chunk; });\n      res.on('end', () => {\n        try { resolve(JSON.parse(body)); } catch (e) { reject(e); }\n      });\n    });\n    req.on('error', reject);\n    req.write(postData);\n    req.end();\n  });\n  it.json.replyText = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';\n}\nreturn items.map((i) => ({ json: i.json }));"
+      },
+      "id": "39ffe5b5-cd48-4f62-9f65-a689da0b2886",
+      "name": "Generate reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3104,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "runCustomScript",
+        "scriptCode": "const items = $input.all().map((i) => i.json);\nif (items.length === 0) return [];\n\nconst { cookies } = items[0];\nif (!cookies || !Array.isArray(cookies) || cookies.length === 0) {\n  throw new Error('Cookies not found or invalid');\n}\n\n// Navigate to x.com first to establish domain\nawait $page.goto('https://x.com', { waitUntil: 'domcontentloaded' });\n\n// Ensure cookies have correct domain\nconst cookiesWithDomain = cookies.map(cookie => ({\n  ...cookie,\n  domain: cookie.domain || '.x.com',\n  url: cookie.url || 'https://x.com'\n}));\n\n// Set cookies\nawait $page.setCookie(...cookiesWithDomain);\n\nconst out = [];\n\nfor (const { url, replyText, id } of items) {\n  try {\n    // Navigate to tweet with less strict wait condition and retry logic\n    let navigationSuccess = false;\n    let attempts = 0;\n    const maxAttempts = 3;\n    \n    while (!navigationSuccess && attempts < maxAttempts) {\n      try {\n        // Use 'domcontentloaded' instead of 'networkidle2' - faster and more reliable\n        await $page.goto(url, { \n          waitUntil: 'domcontentloaded', \n          timeout: 30000  // 30 seconds should be enough\n        });\n        navigationSuccess = true;\n      } catch (navError) {\n        attempts++;\n        if (attempts >= maxAttempts) {\n          throw new Error(`Navigation failed after ${maxAttempts} attempts: ${navError.message}`);\n        }\n        // Wait before retry\n        await new Promise(r => setTimeout(r, 3000));\n      }\n    }\n    \n    // Wait a bit for page to fully render (but don't wait for networkidle)\n    await new Promise(r => setTimeout(r, 3000));\n    \n    // Check if we're on the right page (not a login/error page)\n    const currentUrl = $page.url();\n    if (!currentUrl.includes('x.com') || currentUrl.includes('login') || currentUrl.includes('i/flow')) {\n      throw new Error(`Unexpected page: ${currentUrl}. May need to refresh cookies.`);\n    }\n    \n    // Try multiple selectors for reply button\n    let replyButton = null;\n    const replySelectors = [\n      'div[data-testid=\"reply\"]',\n      'button[data-testid=\"reply\"]',\n      '[aria-label*=\"Reply\" i]',\n      'button[aria-label*=\"Reply\" i]',\n      'div[role=\"button\"][aria-label*=\"Reply\" i]'\n    ];\n    \n    for (const selector of replySelectors) {\n      try {\n        await $page.waitForSelector(selector, { visible: true, timeout: 8000 });\n        replyButton = await $page.$(selector);\n        if (replyButton) break;\n      } catch (e) {\n        continue;\n      }\n    }\n    \n    if (!replyButton) {\n      // Fallback: try to find by text content\n      replyButton = await $page.evaluateHandle(() => {\n        const buttons = Array.from(document.querySelectorAll('div[role=\"button\"], button'));\n        return buttons.find(btn => \n          btn.textContent && btn.textContent.toLowerCase().includes('reply')\n        );\n      });\n    }\n    \n    if (!replyButton) {\n      throw new Error('Reply button not found. Page might require login or have changed structure.');\n    }\n    \n    // Click reply button\n    await replyButton.click();\n    \n    // Wait for reply textarea\n    await $page.waitForSelector('div[data-testid=\"tweetTextarea_0\"], div[role=\"textbox\"]', { visible: true, timeout: 10000 });\n    \n    // Type reply (remove quotes if present)\n    const cleanReply = replyText.replace(/^[\"']|[\"']$/g, '').trim();\n    \n    // Clear any existing text first\n    await $page.evaluate(() => {\n      const textarea = document.querySelector('div[data-testid=\"tweetTextarea_0\"], div[role=\"textbox\"]');\n      if (textarea) {\n        textarea.focus();\n        textarea.innerText = '';\n        textarea.textContent = '';\n      }\n    });\n    \n    await $page.type('div[data-testid=\"tweetTextarea_0\"], div[role=\"textbox\"]', cleanReply, { delay: 50 });\n    \n    // Wait a moment for the button to become enabled\n    await new Promise(r => setTimeout(r, 1500));\n    \n    // Find and click post button\n    const postSelectors = [\n      'div[data-testid=\"tweetButtonInline\"]',\n      'div[data-testid=\"tweetButton\"]',\n      'button[data-testid=\"tweetButton\"]',\n      '[data-testid=\"tweetButtonInline\"]'\n    ];\n    \n    let posted = false;\n    for (const selector of postSelectors) {\n      try {\n        const postBtn = await $page.$(selector);\n        if (postBtn) {\n          const isVisible = await $page.evaluate((el) => {\n            const rect = el.getBoundingClientRect();\n            return rect.width > 0 && rect.height > 0 && window.getComputedStyle(el).display !== 'none';\n          }, postBtn);\n          \n          if (isVisible) {\n            await postBtn.click();\n            posted = true;\n            break;\n          }\n        }\n      } catch (e) {\n        continue;\n      }\n    }\n    \n    if (!posted) {\n      throw new Error('Post button not found or not clickable');\n    }\n    \n    // Wait a moment to confirm post\n    await new Promise(r => setTimeout(r, 3000));\n    \n    out.push({ json: { id, url, replyText: cleanReply, posted: true } });\n  } catch (e) {\n    out.push({ json: { id, url, replyText, posted: false, error: String(e && e.message) } });\n  }\n  \n  // Random delay between posts (10-30 seconds)\n  await new Promise((r) => setTimeout(r, 10000 + Math.random() * 20000));\n}\n\nreturn out;",
+        "options": {}
+      },
+      "id": "54382009-7e42-4102-a0ef-2757878c0d2e",
+      "name": "Post replies",
+      "type": "n8n-nodes-puppeteer.puppeteer",
+      "typeVersion": 1,
+      "position": [
+        3344,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst items = $input.all();\nconst n = items.length;\nif (n === 0) return [];\nconst countPath = '/data/replyCount.json';\nlet countData = { count: 0 };\ntry {\n  countData = JSON.parse(fs.readFileSync(countPath, 'utf8'));\n} catch (e) {}\ncountData.count += n;\nfs.writeFileSync(countPath, JSON.stringify(countData, null, 2));\nconst idsPath = '/data/repliedIds.json';\nlet ids = [];\ntry {\n  ids = JSON.parse(fs.readFileSync(idsPath, 'utf8'));\n} catch (e) {}\nconst postedIds = items.filter((i) => i.json.posted !== false).map((i) => i.json.id).filter(Boolean);\nids.push(...postedIds);\nfs.writeFileSync(idsPath, JSON.stringify(ids, null, 2));\nreturn items;"
+      },
+      "id": "03441411-6943-4917-a021-33b24bbaab71",
+      "name": "Persist",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3600,
+        336
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Check counter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Check counter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check counter": {
+      "main": [
+        [
+          {
+            "node": "Load cookies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load cookies": {
+      "main": [
+        [
+          {
+            "node": "Scrape feed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape feed": {
+      "main": [
+        [
+          {
+            "node": "Filter replied",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter replied": {
+      "main": [
+        [
+          {
+            "node": "Classify with Groq",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify with Groq": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "Generate reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate reply": {
+      "main": [
+        [
+          {
+            "node": "Post replies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post replies": {
+      "main": [
+        [
+          {
+            "node": "Persist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "05c5228d-c246-4e57-b103-d776b1134035",
+  "meta": {
+    "instanceId": "9bf52acc4808a3c81c14f50e67f10b2868115a17fd082f581081f5bc91d46c75"
+  },
+  "id": "Yy1obi0CAJtixC8sVzzQj",
+  "tags": []
+}

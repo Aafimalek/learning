@@ -125,24 +125,23 @@ http://localhost:5678
 
 ## ☁️ Cloud Deployment
 
-### Deploy to Render + Vercel (Free Tier)
+### Deploy to AWS EC2 with SSL
 
-Deploy your automation to the cloud for free using Render (hosting) + Vercel (keep-alive service).
+Deploy your automation to AWS EC2 with full SSL certificate support.
 
 **Benefits**:
-- ✅ Free hosting on Render
-- ✅ Free keep-alive service on Vercel
-- ✅ No server management
-- ✅ Automatic deployments
-- ✅ HTTPS included
+- ✅ Reliable AWS infrastructure
+- ✅ Free SSL certificate (Let's Encrypt)
+- ✅ Full control over server
+- ✅ Scalable and secure
 
-**See detailed guide**: [docs/render-vercel-deployment.md](docs/render-vercel-deployment.md)
+**See detailed guide**: [docs/aws-ec2-deployment.md](docs/aws-ec2-deployment.md)
 
 The guide includes:
-- Step-by-step Render deployment
-- Vercel keep-alive service setup
-- Configuration and troubleshooting
-- Complete setup checklist
+- Step-by-step EC2 instance creation
+- SSL certificate setup (Let's Encrypt)
+- Nginx reverse proxy configuration
+- Complete deployment checklist
 
 ## 📁 Project Structure
 
@@ -159,13 +158,8 @@ The guide includes:
 │   ├── replyCount.json        # Reply counter
 │   └── repliedIds.json        # Tracked replied tweet IDs
 ├── docs/
-│   ├── setup.md                      # Detailed setup documentation
-│   └── render-vercel-deployment.md    # Cloud deployment guide
-├── vercel-keepalive/                 # Vercel keep-alive service
-│   ├── api/ping.js                   # Ping endpoint
-│   ├── vercel.json                   # Cron job configuration
-│   └── package.json
-├── render.yaml                       # Render deployment configuration
+│   ├── setup.md                  # Detailed setup documentation
+│   └── aws-ec2-deployment.md     # AWS EC2 deployment guide
 └── workflows/
     └── twitter-ai-reply-automation.json  # n8n workflow definition
 ```
