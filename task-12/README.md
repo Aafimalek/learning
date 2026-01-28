@@ -123,6 +123,27 @@ http://localhost:5678
 1. Click **Active** toggle to enable the workflow
 2. Or click **Execute Workflow** to run it manually for testing
 
+## ☁️ Cloud Deployment
+
+### Deploy to Render + Vercel (Free Tier)
+
+Deploy your automation to the cloud for free using Render (hosting) + Vercel (keep-alive service).
+
+**Benefits**:
+- ✅ Free hosting on Render
+- ✅ Free keep-alive service on Vercel
+- ✅ No server management
+- ✅ Automatic deployments
+- ✅ HTTPS included
+
+**See detailed guide**: [docs/render-vercel-deployment.md](docs/render-vercel-deployment.md)
+
+The guide includes:
+- Step-by-step Render deployment
+- Vercel keep-alive service setup
+- Configuration and troubleshooting
+- Complete setup checklist
+
 ## 📁 Project Structure
 
 ```
@@ -138,7 +159,13 @@ http://localhost:5678
 │   ├── replyCount.json        # Reply counter
 │   └── repliedIds.json        # Tracked replied tweet IDs
 ├── docs/
-│   └── setup.md               # Detailed setup documentation
+│   ├── setup.md                      # Detailed setup documentation
+│   └── render-vercel-deployment.md    # Cloud deployment guide
+├── vercel-keepalive/                 # Vercel keep-alive service
+│   ├── api/ping.js                   # Ping endpoint
+│   ├── vercel.json                   # Cron job configuration
+│   └── package.json
+├── render.yaml                       # Render deployment configuration
 └── workflows/
     └── twitter-ai-reply-automation.json  # n8n workflow definition
 ```
