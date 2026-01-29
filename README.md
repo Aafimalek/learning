@@ -5,6 +5,7 @@
 ![GenAI Banner](https://img.shields.io/badge/GenAI-Learning%20Journey-blue?style=for-the-badge&logo=openai)
 ![LangChain](https://img.shields.io/badge/LangChain-Framework-green?style=for-the-badge)
 ![LangGraph](https://img.shields.io/badge/LangGraph-Agentic%20AI-orange?style=for-the-badge)
+![CrewAI](https://img.shields.io/badge/CrewAI-Multi--Agent-purple?style=for-the-badge)
 ![Python](https://img.shields.io/badge/Python-3.10+-yellow?style=for-the-badge&logo=python)
 
 **A comprehensive learning repository documenting my journey through Generative AI and Agentic AI concepts**
@@ -31,6 +32,7 @@
 - [Task-10: A2A Protocol (Agent-to-Agent Communication)](#-task-10-a2a-protocol-agent-to-agent-communication)
 - [Task-11: Real-Time AI Voice Sales Agent](#-task-11-real-time-ai-voice-sales-agent)
 - [Task-12: X.com AI/ML Reply Automation with n8n](#-task-12-xcom-aiml-reply-automation-with-n8n)
+- [Task-13: CrewAI Startup Idea Validator](#-task-13-crewai-startup-idea-validator)
 - [Key Concepts Reference](#-key-concepts-reference)
 - [How to Add New Tasks](#-how-to-add-new-tasks)
 - [Setup & Installation](#-setup--installation)
@@ -48,6 +50,7 @@ This repository serves as my personal **learning logbook** for Generative AI (Ge
 |------------|-------------|---------------|
 | **LangChain** | Framework for LLM application development | Task 1, 2, 3, 4, 8 |
 | **LangGraph** | Framework for building agentic workflows | Task 4, 6, 7 |
+| **CrewAI** | Multi-agent orchestration framework | Task 13 |
 | **Groq API** | High-speed LLM inference (Llama, Qwen models) | All Tasks |
 | **Streamlit** | Web UI framework for ML applications | Task 1, 2, 3, 4 |
 | **ChromaDB** | Vector database for embeddings | Task 4 |
@@ -56,6 +59,7 @@ This repository serves as my personal **learning logbook** for Generative AI (Ge
 | **Pydantic** | Data validation & structured outputs | All Tasks |
 | **n8n** | Workflow automation platform | Task 12 |
 | **Puppeteer** | Browser automation library | Task 12 |
+| **SerperDev** | Google Search API for web research | Task 13 |
 
 ### 🗺️ Learning Journey Map
 
@@ -84,8 +88,14 @@ graph LR
     
     subgraph "Phase 5: Database & RAG"
         G --> K[Task 8: MongoDB RAG]
-        K --> L[Vector Search]
-        K --> M[Hybrid Search]
+        K --> L[Task 9: MongoDB CRUD]
+    end
+    
+    subgraph "Phase 6: Advanced Multi-Agent"
+        J --> N[Task 10: A2A Protocol]
+        J --> O[Task 11: Voice Agent]
+        J --> P[Task 12: n8n Automation]
+        J --> Q[Task 13: CrewAI]
     end
     
     style A fill:#e1f5fe
@@ -100,7 +110,10 @@ graph LR
     style J fill:#00897b
     style K fill:#ff8a65
     style L fill:#ffab91
-    style M fill:#ffab91
+    style N fill:#ce93d8
+    style O fill:#ba68c8
+    style P fill:#ab47bc
+    style Q fill:#9c27b0
 ```
 
 ---
@@ -271,6 +284,22 @@ training/
 │   └── pyproject.toml           # UV project config with a2a-sdk
 ├── task-11/                     # Real-Time AI Voice Sales Agent
 │   └── sales-agent-cerebras-livekit.ipynb  # Voice agent notebook with multi-agent support
+├── task-12/                     # X.com AI/ML Reply Automation
+│   ├── docker-compose.yaml      # Docker configuration with n8n + Puppeteer
+│   ├── workflows/               # n8n workflow JSON exports
+│   └── data/                    # Cookies, counters, configuration
+├── task-13/                     # CrewAI Startup Idea Validator
+│   ├── src/task_13/
+│   │   ├── crew.py              # Multi-agent crew definition with 5 agents
+│   │   ├── main.py              # Entry point with retry logic & rate limiting
+│   │   ├── config/
+│   │   │   ├── agents.yaml      # Agent role/goal/backstory definitions
+│   │   │   └── tasks.yaml       # Task descriptions & expected outputs
+│   │   └── tools/
+│   │       └── research_tools.py # SerperDev & Selenium scraping tools
+│   ├── reports/                 # Generated validation reports (5 MD files)
+│   ├── knowledge/               # Optional knowledge base for RAG
+│   └── pyproject.toml           # UV project with crewai dependencies
 └── .env                         # API keys (not tracked)
 ```
 
@@ -292,6 +321,7 @@ training/
 | Task 10 | A2A Protocol (Agent-to-Agent) | ⭐⭐⭐ Advanced | ✅ Complete |
 | Task 11 | Real-Time AI Voice Sales Agent | ⭐⭐⭐⭐ Expert | ✅ Complete |
 | Task 12 | X.com AI/ML Reply Automation | ⭐⭐⭐ Advanced | ✅ Complete |
+| Task 13 | CrewAI Startup Idea Validator | ⭐⭐⭐⭐ Expert | ✅ Complete |
 
 ---
 
@@ -3709,6 +3739,531 @@ sequenceDiagram
 8. **Activate**: Enable the workflow and it will run automatically
 
 For detailed setup instructions, see [task-12/README.md](task-12/README.md).
+
+---
+
+## 🚀 Task-13: CrewAI Startup Idea Validator
+
+### What is This Task About?
+
+**Task-13** demonstrates building a **sophisticated multi-agent system** using **CrewAI** to validate startup ideas through comprehensive research and analysis. The system orchestrates 5 specialized AI agents that work together sequentially, each contributing their expertise to create a detailed startup validation report.
+
+This task showcases why **CrewAI is an excellent choice for multi-agent systems** - it provides a higher-level abstraction over LangGraph with built-in agent orchestration, role-based prompting, and production-ready features like rate limiting and retry mechanisms.
+
+### 🎯 Learning Objectives
+
+- Master **CrewAI framework** for multi-agent orchestration
+- Understand **role-based agent design** with backstories and goals
+- Implement **sequential task dependencies** where outputs feed into subsequent tasks
+- Build **research-focused agents** with web search and scraping tools
+- Handle **API rate limiting** with retries, delays, and callbacks
+- Compare **CrewAI vs LangGraph** for multi-agent systems
+- Generate structured **markdown reports** from agent outputs
+
+### 🏗️ System Architecture
+
+```mermaid
+flowchart TB
+    subgraph Input["📝 User Input"]
+        A["Startup Idea Description"]
+    end
+    
+    subgraph CrewOrchestration["🤖 CrewAI Orchestration Engine"]
+        direction TB
+        B["Sequential Process Manager"]
+        C["Task Context Passing"]
+        D["Rate Limit Handler"]
+    end
+    
+    subgraph Agents["🧠 Specialized AI Agents"]
+        direction TB
+        E["👔 Market Research Specialist"]
+        F["🔍 Competitive Intelligence Analyst"]
+        G["👥 Customer Insights Researcher"]
+        H["📦 Product Strategy Advisor"]
+        I["📊 Business Analyst"]
+    end
+    
+    subgraph Tools["🔧 Research Tools"]
+        T1["🔎 SerperDev Web Search"]
+        T2["📰 SerperDev News Search"]
+        T3["🌐 Web Scraper (HTTP)"]
+        T4["🖥️ Selenium Scraper (JS)"]
+    end
+    
+    subgraph Output["📋 Generated Reports"]
+        O1["01_market_research_report.md"]
+        O2["02_competitive_analysis_report.md"]
+        O3["03_customer_insights_report.md"]
+        O4["04_product_strategy_report.md"]
+        O5["05_final_validation_report.md"]
+    end
+    
+    A --> B
+    B --> E --> O1
+    O1 --> F --> O2
+    O2 --> G --> O3
+    O3 --> H --> O4
+    O4 --> I --> O5
+    
+    E --> T1 & T2 & T3
+    F --> T1 & T2 & T3 & T4
+    G --> T1 & T3
+    H --> T1 & T3
+    
+    style CrewOrchestration fill:#e3f2fd
+    style Agents fill:#f3e5f5
+    style Tools fill:#fff3e0
+    style Output fill:#e8f5e9
+```
+
+### 🤖 Why CrewAI is Better for Multi-Agent Systems
+
+CrewAI provides significant advantages over building multi-agent systems from scratch with LangGraph:
+
+#### CrewAI vs LangGraph Comparison
+
+```mermaid
+graph TB
+    subgraph CrewAI["🚀 CrewAI Approach"]
+        A1["Define Agents with Role/Goal/Backstory"]
+        A2["Configure Tasks with YAML"]
+        A3["Set Process Type (Sequential/Parallel)"]
+        A4["Run with crew.kickoff()"]
+        A1 --> A2 --> A3 --> A4
+    end
+    
+    subgraph LangGraph["📊 LangGraph Approach"]
+        B1["Define State TypedDict"]
+        B2["Create Node Functions"]
+        B3["Add Edges & Conditionals"]
+        B4["Implement Message Passing"]
+        B5["Build Checkpointing"]
+        B6["Handle Tool Calls Manually"]
+        B1 --> B2 --> B3 --> B4 --> B5 --> B6
+    end
+    
+    style CrewAI fill:#c8e6c9
+    style LangGraph fill:#ffcdd2
+```
+
+| Aspect | CrewAI | LangGraph |
+|--------|--------|-----------|
+| **Abstraction Level** | High-level, role-based | Low-level, graph-based |
+| **Agent Definition** | YAML config with role/goal/backstory | Manual node functions |
+| **Task Orchestration** | Built-in sequential/hierarchical/parallel | Manual edge definitions |
+| **Tool Integration** | Simple `tools=[]` parameter | ToolNode, tool_condition |
+| **Memory** | Built-in short/long-term memory | InMemoryStore, custom |
+| **Rate Limiting** | `max_rpm` on agents, callbacks | Manual implementation |
+| **Output Handling** | File output, context passing | State management |
+| **Learning Curve** | Lower (declarative) | Higher (imperative) |
+| **Best For** | Business workflows, research, content | Complex conditional flows, custom logic |
+
+#### Key CrewAI Advantages
+
+1. **Role-Based Design**: Agents have personas (role, goal, backstory) that ground their behavior
+2. **Declarative Configuration**: YAML-based agent/task definitions reduce boilerplate
+3. **Automatic Context Passing**: Task outputs flow to dependent tasks automatically
+4. **Built-in Rate Limiting**: `max_rpm` parameter prevents API throttling
+5. **Production Ready**: Callbacks, retries, and error handling out of the box
+6. **Tool Ecosystem**: Extensive `crewai-tools` library (Serper, Selenium, etc.)
+
+### 🧠 The 5 Specialized Agents
+
+```mermaid
+graph TB
+    subgraph Agent1["👔 Market Research Specialist"]
+        A1_R["Role: Analyze market opportunities"]
+        A1_G["Goal: TAM/SAM/SOM analysis, trends"]
+        A1_T["Tools: Search, News, Scrape"]
+    end
+    
+    subgraph Agent2["🔍 Competitive Intelligence Analyst"]
+        A2_R["Role: Map competitive landscape"]
+        A2_G["Goal: SWOT analysis, market positioning"]
+        A2_T["Tools: Search, News, Scrape, Selenium"]
+    end
+    
+    subgraph Agent3["👥 Customer Insights Researcher"]
+        A3_R["Role: Understand target customers"]
+        A3_G["Goal: Personas, pain points, WTP"]
+        A3_T["Tools: Search, Scrape"]
+    end
+    
+    subgraph Agent4["📦 Product Strategy Advisor"]
+        A4_R["Role: Evaluate product-market fit"]
+        A4_G["Goal: Value prop, features, pricing"]
+        A4_T["Tools: Search, Scrape"]
+    end
+    
+    subgraph Agent5["📊 Business Analyst"]
+        A5_R["Role: Synthesize all findings"]
+        A5_G["Goal: GO/NO-GO recommendation"]
+        A5_T["Tools: None (synthesis only)"]
+    end
+    
+    Agent1 --> Agent2 --> Agent3 --> Agent4 --> Agent5
+    
+    style Agent1 fill:#e3f2fd
+    style Agent2 fill:#f3e5f5
+    style Agent3 fill:#fff3e0
+    style Agent4 fill:#e8f5e9
+    style Agent5 fill:#fce4ec
+```
+
+| Agent | Research Focus | Output |
+|-------|---------------|--------|
+| **Market Research Specialist** | TAM/SAM/SOM, market trends, growth projections | Market size & opportunity analysis |
+| **Competitive Intelligence Analyst** | Competitor profiles, SWOT, market positioning | Competitive landscape map |
+| **Customer Insights Researcher** | Customer personas, pain points, willingness to pay | Customer journey & needs analysis |
+| **Product Strategy Advisor** | Value proposition, MVP features, pricing, GTM | Product & go-to-market strategy |
+| **Business Analyst** | Synthesize all findings, validation scorecard | Final GO/NO-GO recommendation |
+
+### 📝 Key Code Patterns
+
+#### Agent Definition with @agent Decorator
+
+```python
+from crewai import Agent, Crew, Process, Task
+from crewai.project import CrewBase, agent, crew, task
+
+@CrewBase
+class StartupValidatorCrew:
+    """Multi-agent startup validation system."""
+    
+    # Load configurations from YAML files
+    agents_config = 'config/agents.yaml'
+    tasks_config = 'config/tasks.yaml'
+    
+    @agent
+    def market_research_specialist(self) -> Agent:
+        """Market Research Agent with search tools."""
+        return Agent(
+            config=self.agents_config['market_research_specialist'],
+            tools=[search_tool, news_search_tool, scrape_tool],
+            max_rpm=1,  # Rate limit: 1 request per minute
+            verbose=True,
+        )
+    
+    @agent
+    def business_analyst(self) -> Agent:
+        """Final report synthesizer (no tools - uses previous outputs)."""
+        return Agent(
+            config=self.agents_config['business_analyst'],
+            max_rpm=1,
+            verbose=True,
+        )
+```
+
+#### YAML-Based Agent Configuration
+
+```yaml
+# config/agents.yaml
+market_research_specialist:
+  role: >
+    Market Research Specialist for {startup_idea}
+  goal: >
+    Conduct comprehensive market research to understand market size, 
+    trends, growth potential, and key opportunities. Identify TAM, 
+    SAM, and SOM for the startup idea.
+  backstory: >
+    You are a seasoned market research specialist with 15+ years 
+    experience analyzing emerging markets. Your reports have helped 
+    numerous startups secure funding by providing investors with 
+    confidence in market potential.
+
+business_analyst:
+  role: >
+    Business Analyst and Final Report Synthesizer for {startup_idea}
+  goal: >
+    Synthesize all research findings into a comprehensive validation 
+    report with clear GO/NO-GO recommendation and supporting evidence.
+  backstory: >
+    You are a senior business analyst who has evaluated 200+ startup 
+    ideas for venture capital firms. You have an MBA and have founded 
+    two successful startups yourself.
+```
+
+#### Task Definition with Context Dependencies
+
+```python
+@task
+def final_validation_report_task(self) -> Task:
+    """
+    Final task that receives context from ALL previous tasks.
+    """
+    return Task(
+        config=self.tasks_config['final_validation_report_task'],
+        output_file='reports/05_final_validation_report.md',
+        context=[  # Outputs from these tasks are passed as context
+            self.market_research_task(),
+            self.competitive_analysis_task(),
+            self.customer_research_task(),
+            self.product_strategy_task(),
+        ],
+    )
+```
+
+#### Research Tools Configuration
+
+```python
+from crewai_tools import SerperDevTool, ScrapeWebsiteTool, SeleniumScrapingTool
+
+# Web Search Tool - Uses Serper.dev API for Google search
+search_tool = SerperDevTool(n_results=10)
+
+# News Search Tool - For finding recent news articles
+news_search_tool = SerperDevTool(n_results=10, search_type="news")
+
+# Web Scraping Tool - HTTP-based scraping for static websites  
+scrape_tool = ScrapeWebsiteTool()
+
+# Selenium Scraping Tool - For JavaScript-rendered content
+selenium_tool = SeleniumScrapingTool(wait_time=5)
+```
+
+### 📊 Sequential Task Flow
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant C as CrewAI Engine
+    participant A1 as Market Researcher
+    participant A2 as Competitive Analyst
+    participant A3 as Customer Researcher
+    participant A4 as Product Strategist
+    participant A5 as Business Analyst
+    participant T as Tools (Serper, Scraper)
+    
+    U->>C: "Validate: AI-powered chatbot platform"
+    
+    rect rgb(227, 242, 253)
+        Note over C,A1: Task 1: Market Research
+        C->>A1: Execute market_research_task
+        A1->>T: Web search for market data
+        T->>A1: Search results
+        A1->>C: 01_market_research_report.md
+    end
+    
+    rect rgb(243, 229, 245)
+        Note over C,A2: Task 2: Competitive Analysis
+        C->>A2: Execute competitive_analysis_task
+        A2->>T: Search competitors, scrape websites
+        T->>A2: Competitor data
+        A2->>C: 02_competitive_analysis_report.md
+    end
+    
+    rect rgb(255, 243, 224)
+        Note over C,A3: Task 3: Customer Research
+        C->>A3: Execute customer_research_task
+        A3->>T: Search customer pain points
+        T->>A3: Customer insights
+        A3->>C: 03_customer_insights_report.md
+    end
+    
+    rect rgb(232, 245, 233)
+        Note over C,A4: Task 4: Product Strategy
+        C->>A4: Execute product_strategy_task
+        A4->>T: Search pricing, features
+        T->>A4: Strategy data
+        A4->>C: 04_product_strategy_report.md
+    end
+    
+    rect rgb(252, 228, 236)
+        Note over C,A5: Task 5: Final Validation
+        C->>A5: Execute with ALL previous contexts
+        Note right of A5: Receives all 4 reports<br/>as context input
+        A5->>C: 05_final_validation_report.md
+    end
+    
+    C->>U: ✅ Complete validation with GO/NO-GO
+```
+
+### ⚡ Rate Limiting & Retry Strategies
+
+Handling API rate limits is critical when using LLM APIs like Groq. CrewAI provides multiple strategies:
+
+```mermaid
+flowchart TB
+    subgraph Strategy1["🔄 LiteLLM Retry Configuration"]
+        S1A["litellm.num_retries = 5"]
+        S1B["litellm.request_timeout = 180"]
+        S1C["litellm.retry_after = 30"]
+    end
+    
+    subgraph Strategy2["⏱️ Agent RPM Limiting"]
+        S2A["max_rpm=1 per agent"]
+        S2B["Prevents burst requests"]
+    end
+    
+    subgraph Strategy3["📞 Callback Delays"]
+        S3A["step_callback: 15s delay"]
+        S3B["task_callback: 30s delay"]
+    end
+    
+    subgraph Strategy4["🔁 Main Loop Retries"]
+        S4A["MAX_RETRIES = 5"]
+        S4B["Exponential backoff: 90s → 300s"]
+        S4C["Detects rate limit keywords"]
+    end
+    
+    Strategy1 --> API[API Calls]
+    Strategy2 --> API
+    Strategy3 --> API
+    Strategy4 --> API
+    
+    style Strategy1 fill:#e3f2fd
+    style Strategy2 fill:#e8f5e9
+    style Strategy3 fill:#fff3e0
+    style Strategy4 fill:#fce4ec
+```
+
+#### Rate Limiting Implementation
+
+```python
+import litellm
+import time
+
+# Strategy 1: LiteLLM Retry Configuration
+litellm.num_retries = 5
+litellm.request_timeout = 180
+litellm.retry_after = 30
+
+# Strategy 2: Agent-Level RPM Limiting
+@agent
+def market_research_specialist(self) -> Agent:
+    return Agent(
+        config=self.agents_config['market_research_specialist'],
+        tools=[search_tool, news_search_tool],
+        max_rpm=1,  # Max 1 request per minute
+        verbose=True,
+    )
+
+# Strategy 3: Callback Delays
+def _step_callback(self, step_output) -> None:
+    """Delay after each agent step."""
+    print("⏳ Waiting 15 seconds...")
+    time.sleep(15)
+
+def _task_callback(self, task_output) -> None:
+    """Delay after each task completes."""
+    print("✅ Task completed! Waiting 30 seconds...")
+    time.sleep(30)
+
+@crew
+def crew(self) -> Crew:
+    return Crew(
+        agents=self.agents,
+        tasks=self.tasks,
+        process=Process.sequential,
+        step_callback=self._step_callback,
+        task_callback=self._task_callback,
+    )
+
+# Strategy 4: Main Loop with Exponential Backoff
+MAX_RETRIES = 5
+INITIAL_RETRY_DELAY = 90  # seconds
+MAX_RETRY_DELAY = 300  # 5 minutes max
+
+def run():
+    retries = 0
+    while retries <= MAX_RETRIES:
+        try:
+            result = StartupValidatorCrew().crew().kickoff(inputs=inputs)
+            return result
+        except Exception as e:
+            if is_rate_limit_error(e) and retries < MAX_RETRIES:
+                retries += 1
+                delay = min(INITIAL_RETRY_DELAY * (2 ** (retries - 1)), MAX_RETRY_DELAY)
+                print(f"⚠️ Rate limit hit - Retry {retries}/{MAX_RETRIES} in {delay}s")
+                time.sleep(delay)
+            else:
+                raise
+```
+
+### 📋 Final Validation Report Structure
+
+The Business Analyst synthesizes all research into a comprehensive report:
+
+```mermaid
+graph TB
+    subgraph Report["📊 Final Validation Report Structure"]
+        S1["📋 Executive Summary<br/>One-paragraph summary + bullet points"]
+        S2["🎯 Validation Scorecard<br/>5 scores (1-10) with justifications"]
+        S3["🔍 Key Findings<br/>Top 3 reasons + Top 3 risks"]
+        S4["📈 Recommendations<br/>Next steps, milestones, resources"]
+        S5["📚 Appendix<br/>Research summary, data sources"]
+    end
+    
+    subgraph Scores["Scorecard Categories"]
+        SC1["Market Opportunity: 8/10"]
+        SC2["Competitive Position: 7/10"]
+        SC3["Customer Need: 9/10"]
+        SC4["Product-Market Fit: 7/10"]
+        SC5["Overall Feasibility: 7.75/10"]
+    end
+    
+    S2 --> Scores
+    
+    style Report fill:#e8f5e9
+    style Scores fill:#fff3e0
+```
+
+### 🚀 Running Task-13
+
+```bash
+# Navigate to task-13 directory
+cd task-13
+
+# Install dependencies with UV
+uv sync
+
+# Set environment variables
+# GROQ_API_KEY - for LLM inference
+# SERPER_API_KEY - for web search
+
+# Run the crew
+crewai run
+
+# Or with UV
+uv run run_crew
+```
+
+### 📁 Task-13 Generated Outputs
+
+| Report | Agent | Contents |
+|--------|-------|----------|
+| `01_market_research_report.md` | Market Research Specialist | TAM/SAM/SOM, trends, growth projections |
+| `02_competitive_analysis_report.md` | Competitive Intelligence Analyst | Competitor profiles, SWOT, positioning |
+| `03_customer_insights_report.md` | Customer Insights Researcher | Personas, pain points, buying behavior |
+| `04_product_strategy_report.md` | Product Strategy Advisor | Value proposition, MVP, pricing, GTM |
+| `05_final_validation_report.md` | Business Analyst | GO/NO-GO, scorecard, recommendations |
+
+### 🔧 Technologies Used (Task-13)
+
+| Technology | Purpose | Usage |
+|------------|---------|-------|
+| **CrewAI** | Multi-agent framework | Agent orchestration, task management |
+| **crewai-tools** | Tool ecosystem | SerperDev, ScrapeWebsite, Selenium |
+| **LiteLLM** | LLM abstraction | Unified API, retry handling |
+| **Groq API** | LLM inference | Fast Llama-3.3-70B responses |
+| **Serper.dev** | Search API | Google search results |
+| **Selenium** | Browser automation | JavaScript-rendered scraping |
+| **YAML** | Configuration | Agent/task declarative definitions |
+| **UV** | Package manager | Fast Python dependency management |
+
+### 💡 Key Learnings from Task-13
+
+1. **CrewAI for orchestration** - Simplifies multi-agent systems with role-based agents
+2. **YAML configuration** - Declarative agent/task definitions reduce boilerplate
+3. **Sequential task flow** - Outputs automatically passed as context to dependent tasks
+4. **Rate limiting strategies** - `max_rpm`, callbacks, exponential backoff all work together
+5. **Research agent patterns** - Combining search + scraping for comprehensive research
+6. **Backstory importance** - Agent backstories significantly improve response quality
+7. **Tool selection** - Different agents need different tools based on their role
+8. **Production considerations** - Retries, timeouts, and delays are essential for reliability
+9. **Report generation** - Structured markdown outputs for stakeholder-ready deliverables
+10. **CrewAI vs LangGraph** - Use CrewAI for business workflows, LangGraph for custom logic
 
 ---
 

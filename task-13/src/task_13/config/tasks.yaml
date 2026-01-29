@@ -1,0 +1,219 @@
+# =============================================================================
+# STARTUP IDEA VALIDATOR - TASK CONFIGURATIONS
+# =============================================================================
+# Sequential tasks that build upon each other to create a comprehensive
+# startup validation report. Each task's output feeds into subsequent tasks.
+# =============================================================================
+
+market_research_task:
+  description: >
+    Conduct comprehensive market research for the startup idea: {startup_idea}
+    
+    Your research should cover:
+    1. Market Size Analysis:
+       - Total Addressable Market (TAM)
+       - Serviceable Addressable Market (SAM)
+       - Serviceable Obtainable Market (SOM)
+    
+    2. Market Trends:
+       - Current trends shaping the industry
+       - Emerging technologies and innovations
+       - Regulatory changes that might impact the market
+    
+    3. Growth Projections:
+       - Historical growth rates
+       - Projected growth for the next 5 years
+       - Key growth drivers
+    
+    4. Market Opportunities:
+       - Underserved segments
+       - Geographic expansion opportunities
+       - Timing considerations
+    
+    Use web search and scraping tools to gather data from reliable sources.
+    Current year: {current_year}
+  expected_output: >
+    A detailed Market Research Report in markdown format containing:
+    - Executive Summary of market opportunity
+    - Market size estimates with sources
+    - Trend analysis with supporting data
+    - Growth projections with methodology
+    - Key opportunities identified
+    - Data sources and references
+  agent: market_research_specialist
+
+competitive_analysis_task:
+  description: >
+    Conduct a thorough competitive analysis for the startup idea: {startup_idea}
+    
+    Your analysis should include:
+    1. Competitor Identification:
+       - Direct competitors (same product/service)
+       - Indirect competitors (alternative solutions)
+       - Potential future competitors
+    
+    2. For each major competitor, analyze:
+       - Company overview and founding date
+       - Product/service offerings
+       - Pricing strategy
+       - Target market
+       - Funding and financial status
+       - Strengths and weaknesses
+       - Market share estimate
+    
+    3. Competitive Landscape:
+       - Market positioning map
+       - Competitive advantages/moats
+       - Barriers to entry
+       - Differentiation opportunities
+    
+    Use web search, news search, and web scraping to gather competitor intelligence.
+    Current year: {current_year}
+  expected_output: >
+    A comprehensive Competitive Analysis Report in markdown format containing:
+    - List of top 5-10 competitors with detailed profiles
+    - SWOT analysis for top 3 competitors
+    - Competitive positioning analysis
+    - Market share distribution
+    - Identified gaps and opportunities
+    - Barriers to entry assessment
+    - Recommendations for competitive positioning
+  agent: competitive_intelligence_analyst
+
+customer_research_task:
+  description: >
+    Conduct in-depth customer research for the startup idea: {startup_idea}
+    
+    Your research should cover:
+    1. Target Customer Segments:
+       - Primary target segment
+       - Secondary segments
+       - Segment size and characteristics
+    
+    2. Customer Personas (create 2-3 detailed personas):
+       - Demographics
+       - Psychographics
+       - Goals and motivations
+       - Pain points and frustrations
+       - Current solutions they use
+       - Decision-making factors
+    
+    3. Customer Needs Analysis:
+       - Core needs the product addresses
+       - Nice-to-have features
+       - Unmet needs in the market
+    
+    4. Buying Behavior:
+       - How customers discover solutions
+       - Decision-making process
+       - Price sensitivity
+       - Willingness to pay
+    
+    Use web search to find customer reviews, forum discussions, and research reports.
+    Current year: {current_year}
+  expected_output: >
+    A detailed Customer Insights Report in markdown format containing:
+    - Target market segmentation analysis
+    - 2-3 detailed customer personas
+    - Pain point prioritization matrix
+    - Customer journey map
+    - Willingness to pay analysis
+    - Key insights and recommendations
+  agent: customer_insights_researcher
+
+product_strategy_task:
+  description: >
+    Develop a product strategy assessment for the startup idea: {startup_idea}
+    
+    Based on the market research, competitive analysis, and customer insights,
+    evaluate and recommend:
+    
+    1. Value Proposition:
+       - Core value proposition
+       - Unique selling points (USPs)
+       - Positioning statement
+    
+    2. Product Features:
+       - Must-have features for MVP
+       - Nice-to-have features for v2
+       - Feature prioritization framework
+    
+    3. Pricing Strategy:
+       - Recommended pricing model
+       - Price point recommendations
+       - Competitive pricing analysis
+    
+    4. Go-to-Market Strategy:
+       - Launch strategy
+       - Marketing channels
+       - Customer acquisition approach
+       - Partnership opportunities
+    
+    5. Risk Assessment:
+       - Technical risks
+       - Market risks
+       - Execution risks
+       - Mitigation strategies
+    
+    Current year: {current_year}
+  expected_output: >
+    A comprehensive Product Strategy Report in markdown format containing:
+    - Value proposition canvas
+    - MVP feature recommendations
+    - Pricing strategy with rationale
+    - Go-to-market roadmap
+    - Risk assessment matrix
+    - Strategic recommendations
+  agent: product_strategy_advisor
+
+final_validation_report_task:
+  description: >
+    Synthesize all research findings into a final startup validation report for: {startup_idea}
+    
+    You have access to reports from:
+    - Market Research Specialist (market size, trends, opportunities)
+    - Competitive Intelligence Analyst (competitor landscape, positioning)
+    - Customer Insights Researcher (personas, pain points, willingness to pay)
+    - Product Strategy Advisor (value proposition, features, go-to-market)
+    
+    Create a comprehensive validation report that includes:
+    
+    1. Executive Summary:
+       - One-paragraph summary of the startup idea
+       - Key findings in bullet points
+       - Clear GO/NO-GO recommendation
+    
+    2. Validation Scorecard:
+       - Market Opportunity Score (1-10)
+       - Competitive Position Score (1-10)
+       - Customer Need Score (1-10)
+       - Product-Market Fit Score (1-10)
+       - Overall Feasibility Score (1-10)
+    
+    3. Key Findings:
+       - Top 3 reasons to pursue
+       - Top 3 risks/concerns
+       - Critical assumptions to validate
+    
+    4. Recommendations:
+       - Immediate next steps
+       - Key milestones for first 6 months
+       - Resources needed
+       - Suggested pivots or modifications
+    
+    5. Appendix:
+       - Summary of all research conducted
+       - Key data sources
+    
+    Current year: {current_year}
+  expected_output: >
+    A professional Startup Validation Report in markdown format containing:
+    - Executive summary with clear GO/NO-GO recommendation
+    - Validation scorecard with scores and justifications
+    - Detailed analysis synthesizing all research
+    - Actionable recommendations with timeline
+    - Risk mitigation strategies
+    - Next steps and resource requirements
+    
+    The report should be suitable for presenting to investors or stakeholders.
+  agent: business_analyst

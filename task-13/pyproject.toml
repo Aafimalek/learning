@@ -1,0 +1,28 @@
+[project]
+name = "task_13"
+version = "0.1.0"
+description = "Startup Idea Validator - Multi-Agent Market Research System"
+authors = [{ name = "Your Name", email = "you@example.com" }]
+requires-python = ">=3.10,<3.14"
+dependencies = [
+    "crewai[tools]==1.9.2",
+    "fastapi>=0.128.0",
+    "litellm>=1.40.0",
+    "selenium>=4.15.0",
+    "webdriver-manager>=4.0.0",
+]
+
+[project.scripts]
+task_13 = "task_13.main:run"
+run_crew = "task_13.main:run"
+train = "task_13.main:train"
+replay = "task_13.main:replay"
+test = "task_13.main:test"
+run_with_trigger = "task_13.main:run_with_trigger"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.crewai]
+type = "crew"
