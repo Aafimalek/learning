@@ -522,9 +522,15 @@ stateDiagram-v2
     Thought --> FinalAnswer: Have enough info
     FinalAnswer --> [*]
     
-    note right of Thought: "I need to calculate 2^100"
-    note right of Action: "python_interpreter"
-    note right of Observation: "Result: 1.27e30"
+    note right of Thought
+        I need to calculate 2^100
+    end note
+    note right of Action
+        python_interpreter
+    end note
+    note right of Observation
+        Result = 1.27e30
+    end note
 ```
 
 ### 📝 Code Deep Dive
